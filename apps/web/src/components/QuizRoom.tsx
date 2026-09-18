@@ -12,6 +12,7 @@ import { QuestionCard } from './QuestionCard'
 import { AppShell } from './ui/AppShell'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
+import { ConnectionBadge } from './ui/ConnectionBadge'
 import { HowItWorks } from './ui/HowItWorks'
 import { Mascot } from './ui/Mascot'
 import { Modal } from './ui/Modal'
@@ -135,14 +136,14 @@ function Room({
                     : '—'}
               </span>
             </div>
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className="text-xs text-mist">Connection</span>
-              <Status status={state.status} />
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="text-xs text-mist">Quiz</span>
+              <span className="truncate text-xs">{state.quiz?.title ?? '—'}</span>
             </div>
           </div>
         ),
       }}
-      topCenter={state.quiz?.title ?? 'Connecting…'}
+      topCenter={<ConnectionBadge status={state.status} rtt={state.rtt} />}
       topRight={
         <>
           <span className="hidden sm:inline-flex items-center gap-1.5 text-[13px] text-ink-2 px-2">
@@ -269,22 +270,6 @@ function Room({
 
       <HowItWorks open={rulesOpen} onOpenChange={setRulesOpen} />
     </AppShell>
-  )
-}
-
-function Status({ status }: { status: 'connecting' | 'open' | 'reconnecting' | 'closed' }) {
-  const map = {
-    connecting: ['bg-accent', 'connecting'],
-    open: ['bg-good', 'live'],
-    reconnecting: ['bg-accent animate-pulse', 'reconnecting'],
-    closed: ['bg-bad', 'offline'],
-  } as const
-  const [dot, label] = map[status]
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-2">
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
   )
 }
 

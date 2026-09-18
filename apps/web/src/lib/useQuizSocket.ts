@@ -43,6 +43,8 @@ export interface QuizState {
   questionStats: { answered: number; correctCount: number } | null
   /** serverTime − Date.now(): apply to server timestamps before comparing with the local clock. */
   serverOffset: number
+  /** Last measured round-trip time in ms (app-level ping every 5 s); null until measured. */
+  rtt: number | null
   seq: number
 }
 
@@ -61,11 +63,13 @@ const initialState: QuizState = {
   lastResult: null,
   questionStats: null,
   serverOffset: 0,
+  rtt: null,
   seq: 0,
 }
 
 type Action =
   | { type: 'status'; status: ConnectionStatus }
+  | { type: 'rtt'; ms: number }
   | { type: 'error'; message: string }
   | { type: 'server'; msg: ServerMessage; receivedAt: number }
   | { type: 'choose'; questionId: string; choice: number }
@@ -73,7 +77,9 @@ type Action =
 function reducer(state: QuizState, action: Action): QuizState {
   switch (action.type) {
     case 'status':
-      return { ...state, status: action.status }
+      return { ...state, status: action.status, rtt: action.status === 'open' ? state.rtt : null }
+    case 'rtt':
+      return { ...state, rtt: action.ms }
     case 'error':
       return { ...state, error: action.message }
     case 'choose':
@@ -148,7 +154,7 @@ function applyServer(state: QuizState, msg: ServerMessage, receivedAt: number): 
     case 'error':
       return { ...state, error: `${msg.code}: ${msg.message}` }
     case 'pong':
-      return state
+      return { ...state, serverOffset: msg.serverTime - receivedAt }
   }
 }
 
@@ -167,6 +173,12 @@ export function useQuizSocket(quizId: string, name: string) {
     let attempts = 0
     let guestFallback = false
     let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let pingTimer: ReturnType<typeof setInterval> | null = null
+    let pingSentAt = 0
+    const stopPinging = () => {
+      if (pingTimer) clearInterval(pingTimer)
+      pingTimer = null
+    }
 
     const connect = () => {
       dispatch({ type: 'status', status: attempts === 0 ? 'connecting' : 'reconnecting' })
@@ -183,6 +195,15 @@ export function useQuizSocket(quizId: string, name: string) {
         if (stale()) return
         attempts = 0
         dispatch({ type: 'status', status: 'open' })
+        // Round-trip time for the connection badge; also keeps the server clock offset fresh.
+        const ping = () => {
+          if (socket.readyState !== WebSocket.OPEN) return
+          pingSentAt = Date.now()
+          socket.send(JSON.stringify({ type: 'ping' }))
+        }
+        stopPinging()
+        pingTimer = setInterval(ping, 5_000)
+        ping()
         let userId: string | undefined
         try {
           userId = localStorage.getItem(storageKey(quizId, name)) ?? undefined
@@ -226,6 +247,7 @@ export function useQuizSocket(quizId: string, name: string) {
             /* ignore */
           }
         }
+        if (msg.type === 'pong' && pingSentAt) dispatch({ type: 'rtt', ms: Date.now() - pingSentAt })
         dispatch({ type: 'server', msg, receivedAt: Date.now() })
         if (msg.type === 'welcome' && guestFallback)
           dispatch({
@@ -237,6 +259,7 @@ export function useQuizSocket(quizId: string, name: string) {
 
       socket.onclose = (evt) => {
         if (stale()) return
+        stopPinging()
         wsRef.current = null
         if (closedIntentionally) {
           dispatch({ type: 'status', status: 'closed' })
@@ -266,6 +289,7 @@ export function useQuizSocket(quizId: string, name: string) {
     connect()
     return () => {
       closedIntentionally = true
+      stopPinging()
       if (retryTimer) clearTimeout(retryTimer)
       wsRef.current = null // mark the socket stale *before* closing so its onclose is ignored
       ws?.close()
