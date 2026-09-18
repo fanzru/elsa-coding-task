@@ -1,0 +1,70 @@
+# Two server instances sharing one Redis, and the web client pointed at instance B for
+# WebSockets while sessions are created on A — the cross-instance path end to end.
+#
+#   docker compose up --build
+#   WEB_PORT=3100 SERVER_A_PORT=4100 SERVER_B_PORT=4101 docker compose up --build   # custom ports
+#
+# To run published images instead of building, set IMAGE_TAG and use compose.release.yaml.
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ['${REDIS_PORT:-6390}:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: quiz
+      POSTGRES_PASSWORD: quiz
+      POSTGRES_DB: quiz
+    ports: ['${PG_PORT:-5439}:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U quiz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server-a:
+    build: { context: ., dockerfile: apps/server/Dockerfile }
+    environment:
+      INSTANCE_ID: A
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://quiz:quiz@postgres:5432/quiz
+      LOG_LEVEL: info
+    ports: ['${SERVER_A_PORT:-4000}:4000']
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+
+  server-b:
+    build: { context: ., dockerfile: apps/server/Dockerfile }
+    environment:
+      INSTANCE_ID: B
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://quiz:quiz@postgres:5432/quiz
+      DB_AUTO_MIGRATE: 'false' # A migrates; B only reads
+      DEMO_QUIZ_ID: ''
+      LOG_LEVEL: info
+    ports: ['${SERVER_B_PORT:-4001}:4000']
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      server-a: { condition: service_started }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_QUIZ_HTTP_URL: http://localhost:${SERVER_A_PORT:-4000}
+        NEXT_PUBLIC_QUIZ_WS_URL: ws://localhost:${SERVER_B_PORT:-4001}/ws
+    ports: ['${WEB_PORT:-3000}:3000']
+    depends_on: [server-a, server-b]
+
+volumes:
+  pgdata:

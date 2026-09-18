@@ -1,0 +1,34 @@
+# Run published images from GHCR (built by .github/workflows/release.yml on every tag):
+#   IMAGE_TAG=v0.1.0 docker compose -f compose.release.yaml up
+# Set GHCR_OWNER to the GitHub owner/repo the images were published under.
+services:
+  redis:
+    image: redis:7-alpine
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: quiz
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quiz}
+      POSTGRES_DB: quiz
+    volumes: ['pgdata:/var/lib/postgresql/data']
+
+  server:
+    image: ghcr.io/${GHCR_OWNER:-fanzru/elsa-coding-task}-server:${IMAGE_TAG:-latest}
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://quiz:${POSTGRES_PASSWORD:-quiz}@postgres:5432/quiz
+      AUTO_CREATE_SESSIONS: 'false'
+      LOG_LEVEL: info
+    ports: ['${SERVER_PORT:-4000}:4000']
+    depends_on: [redis, postgres]
+    deploy:
+      replicas: 2
+
+  web:
+    image: ghcr.io/${GHCR_OWNER:-fanzru/elsa-coding-task}-web:${IMAGE_TAG:-latest}
+    ports: ['${WEB_PORT:-3000}:3000']
+    depends_on: [server]
+
+volumes:
+  pgdata:

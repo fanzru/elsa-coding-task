@@ -1,0 +1,123 @@
+name: Release
+
+# Two ways in:
+#   1. Push a tag `vX.Y.Z`  → build + push images, create the GitHub release.
+#   2. "Run workflow" with a version → creates the tag first, then does the same.
+# (A tag pushed by a workflow with GITHUB_TOKEN does not trigger other workflows, which is
+# why the dispatch path tags and releases inside one run.)
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag and release, e.g. v0.2.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.event.inputs.version || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Create tag
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        name: Validate version
+        run: |
+          v="${{ inputs.version }}"
+          [[ "$v" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::'$v' is not vX.Y.Z"; exit 1; }
+          git rev-parse -q --verify "refs/tags/$v" >/dev/null && { echo "::error::tag $v already exists"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Tag and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.v.outputs.version }}" -m "Release ${{ steps.v.outputs.version }}"
+          git push origin "${{ steps.v.outputs.version }}"
+
+  release:
+    name: Build images and publish release
+    needs: [tag]
+    if: always() && (github.event_name == 'push' || needs.tag.result == 'success')
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.version || github.ref }}
+
+      - name: Image names
+        id: img
+        run: |
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "server=$repo-server" >> "$GITHUB_OUTPUT"
+          echo "web=$repo-web" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.img.outputs.server }}:${{ env.VERSION }}
+            ${{ steps.img.outputs.server }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          # NEXT_PUBLIC_* are build-time; set repository variables to bake production URLs in.
+          build-args: |
+            NEXT_PUBLIC_QUIZ_HTTP_URL=${{ vars.QUIZ_HTTP_URL }}
+            NEXT_PUBLIC_QUIZ_WS_URL=${{ vars.QUIZ_WS_URL }}
+          tags: |
+            ${{ steps.img.outputs.web }}:${{ env.VERSION }}
+            ${{ steps.img.outputs.web }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          generate_release_notes: true
+          body: |
+            Images:
+            - `${{ steps.img.outputs.server }}:${{ env.VERSION }}`
+            - `${{ steps.img.outputs.web }}:${{ env.VERSION }}`
+
+            Run: `IMAGE_TAG=${{ env.VERSION }} docker compose -f compose.release.yaml up`
