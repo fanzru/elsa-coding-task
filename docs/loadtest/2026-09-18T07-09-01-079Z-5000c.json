@@ -1,0 +1,75 @@
+{
+  "options": {
+    "url": "ws://localhost:4100/ws",
+    "api": "http://localhost:4100",
+    "clients": 5000,
+    "workers": 8,
+    "connectRate": 1000,
+    "quizId": null,
+    "quizDefinitionId": null,
+    "minAnswerDelayMs": 200,
+    "maxAnswerDelayMs": 2500,
+    "questionTimeLimitMs": 4000,
+    "lobbyMs": 8000,
+    "out": "../../docs/loadtest"
+  },
+  "quizId": "Y5BWZW",
+  "wallSeconds": 44.078518933,
+  "summary": {
+    "connected": 5000,
+    "connectErrors": 0,
+    "closedEarly": 0,
+    "protocolErrors": 0,
+    "serverErrors": {},
+    "answersSent": 50000,
+    "answersAccepted": 50000,
+    "leaderboardMsgs": 1390506,
+    "totalMsgs": 1550507,
+    "finished": 5000
+  },
+  "percentiles": {
+    "welcomeLatency": {
+      "n": 5000,
+      "p50": 0.6345539999999801,
+      "p95": 1.667838999999958,
+      "p99": 6.211381999999958,
+      "max": 46.55862399999933
+    },
+    "answerAckLatency": {
+      "n": 50000,
+      "p50": 0.47288099999968836,
+      "p95": 41.77449499999784,
+      "p99": 47.43388099999902,
+      "max": 61.97646100000202
+    },
+    "boardVisibleLatency": {
+      "n": 12615,
+      "p50": 75.72347100000115,
+      "p95": 125.73701500000061,
+      "p99": 137.4465020000007,
+      "max": 156.42927899999995
+    }
+  },
+  "report": [
+    "",
+    "=== load test: 5000 clients, session Y5BWZW, 44.1 s wall ===",
+    "connected 5000/5000  errors=0  closedEarly=0  protocolErrors=0  finished=5000",
+    "answers sent=50000 accepted=50000  messages received=1550507 (leaderboard=1390506, 35176 msg/s)",
+    "server errors: none",
+    "",
+    "join → welcome               n=  5000  p50=    0.6 ms  p95=    1.7 ms  p99=    6.2 ms  max=   46.6 ms",
+    "answer → answer_result       n= 50000  p50=    0.5 ms  p95=   41.8 ms  p99=   47.4 ms  max=   62.0 ms",
+    "answer → leaderboard shows it n= 12615  p50=   75.7 ms  p95=  125.7 ms  p99=  137.4 ms  max=  156.4 ms",
+    "",
+    "--- server (Δ from /metrics) ---",
+    "answers processed      : 50000",
+    "leaderboard fan-outs   : 305  (avg 41.35 ms each)",
+    "messages sent          : 1390506 leaderboard, 50000 question, 50000 answer_result",
+    "dropped (backpressure) : 0",
+    "answer processing p99  : ≤ 0.5 ms",
+    "event loop lag p99     : 60.2 ms (at end of run)",
+    "server CPU time        : 18.43 s over 44.1 s wall  (42 % of one core)",
+    "server RSS             : 255 MB",
+    ""
+  ]
+}
