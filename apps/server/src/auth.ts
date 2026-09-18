@@ -2,8 +2,7 @@
  * Optional accounts: register / login / me. Kept deliberately small — scrypt password hashes
  * and HMAC-signed bearer tokens straight from node:crypto, no session table, no new
  * dependency. A token carries the player's id and name, so the WebSocket `join` can pin the
- * identity server-side (`transport/ws.ts`). Users live in Postgres when configured, otherwise
- * in memory.
+ * identity server-side (`transport/ws.ts`). Users live in Postgres.
  *
  * AI-assisted (Claude Code): see docs/AI_COLLABORATION.md #11.
  */
@@ -19,7 +18,6 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { AuthRequest, type AuthResponse, type MeResponse } from '@quiz/protocol'
 import { type Context, Hono } from 'hono'
 import type { UserRecord, UserStore } from './db/repository.js'
-import { JsonFile } from './store/json-file.js'
 import { TokenBucket } from './transport/rate-limit.js'
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>
@@ -30,31 +28,6 @@ export interface AuthClaims {
   sub: string
   name: string
   exp: number
-}
-
-/** Accounts without a database: a Map, mirrored to a JSON file when one is given so restarts keep them. */
-export class MemoryUserStore implements UserStore {
-  // ponytail: single-instance only; set DATABASE_URL to share accounts across instances.
-  private readonly byName = new Map<string, UserRecord>()
-  private readonly file: JsonFile<UserRecord[]> | null
-
-  constructor(file?: string) {
-    this.file = file ? new JsonFile(file) : null
-    for (const u of this.file?.load([]) ?? [])
-      this.byName.set(u.username.toLowerCase(), { ...u, createdAt: new Date(u.createdAt) })
-  }
-
-  async findByUsername(username: string): Promise<UserRecord | null> {
-    return this.byName.get(username.toLowerCase()) ?? null
-  }
-
-  async create(user: UserRecord): Promise<boolean> {
-    const key = user.username.toLowerCase()
-    if (this.byName.has(key)) return false
-    this.byName.set(key, user)
-    this.file?.save([...this.byName.values()])
-    return true
-  }
 }
 
 export async function hashPassword(password: string): Promise<string> {

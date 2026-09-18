@@ -1,18 +1,31 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadConfig } from '../../src/config.js'
+import { createDb, createMigrator } from '../../src/db/index.js'
 import { createServer, type QuizServer } from '../../src/server.js'
 import { silentLogger, TEST_DEF } from '../helpers.js'
 import { connect, type TestClient } from './ws-client.js'
 
+// Needs Postgres (`make test` starts one). Skipped otherwise.
+const DATABASE_URL = process.env.DATABASE_URL
+const describeIf = DATABASE_URL ? describe : describe.skip
+
 let server: QuizServer
 
 beforeAll(async () => {
+  if (!DATABASE_URL) return
+  // Clean schema so the expectations below (unique usernames, ranked order) are repeatable.
+  const db = createDb(DATABASE_URL, { max: 1 })
+  const migrator = createMigrator(db)
+  let step = await migrator.migrateDown()
+  while (step.results?.length) step = await migrator.migrateDown()
+  await db.destroy()
   server = await createServer({
     config: loadConfig({
       NODE_ENV: 'test',
       PORT: '0',
       HOST: '127.0.0.1',
       LOG_LEVEL: 'silent',
+      DATABASE_URL,
       AUTO_CREATE_SESSIONS: 'false',
       DEMO_QUIZ_ID: '',
       LOBBY_MS: '300',
@@ -27,7 +40,7 @@ beforeAll(async () => {
   })
 })
 afterAll(async () => {
-  await server.close()
+  await server?.close()
 })
 
 const api = (path: string, init?: RequestInit) => fetch(`${server.url}${path}`, init)
@@ -47,7 +60,7 @@ const join = async (quizId: string, name: string, userId?: string) => {
   return { client: c, welcome }
 }
 
-describe('REST', () => {
+describeIf('REST', () => {
   it('serves health, readiness, quizzes and metrics', async () => {
     expect(await (await api('/healthz')).text()).toBe('ok')
     expect((await api('/readyz')).status).toBe(200)
@@ -83,7 +96,7 @@ describe('REST', () => {
   })
 })
 
-describe('WebSocket protocol', () => {
+describeIf('WebSocket protocol', () => {
   it('rejects malformed frames, unknown quizzes and answers before joining, without disconnecting', async () => {
     const c = await connect(server.wsUrl)
     c.sendRaw('this is not json')
@@ -256,12 +269,13 @@ describe('WebSocket protocol', () => {
   })
 })
 
-describe('auto-create mode', () => {
+describeIf('auto-create mode', () => {
   let auto: QuizServer
   beforeAll(async () => {
     auto = await createServer({
       config: loadConfig({
         NODE_ENV: 'test',
+        DATABASE_URL,
         PORT: '0',
         HOST: '127.0.0.1',
         LOG_LEVEL: 'silent',
@@ -286,7 +300,7 @@ describe('auto-create mode', () => {
   })
 })
 
-describe('auth (optional accounts)', () => {
+describeIf('auth (optional accounts)', () => {
   const post = (path: string, body: unknown) =>
     api(path, {
       method: 'POST',
@@ -366,7 +380,12 @@ describe('auth (optional accounts)', () => {
 
     const board = async (path: string, token: string) =>
       (await (await api(path, { headers: { authorization: `Bearer ${token}` } })).json()) as Board
-    const full = await board('/api/ranking', dave.token)
+    // The archive write after quiz_end is fire-and-forget: poll until both accounts show up.
+    let full = await board('/api/ranking', dave.token)
+    for (let i = 0; i < 60 && full.players.length < 2; i++) {
+      await new Promise((r) => setTimeout(r, 50))
+      full = await board('/api/ranking', dave.token)
+    }
     expect(full.players.map((p) => p.name)).toEqual(['Cara', 'Dave'])
     expect(full.players[0]).toMatchObject({ rank: 1, userId: cara.user.id, games: 1, wins: 1 })
     expect(full.players[0]?.totalScore).toBeGreaterThan(0)

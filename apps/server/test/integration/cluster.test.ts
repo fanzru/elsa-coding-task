@@ -1,6 +1,6 @@
 /**
  * Two server instances sharing one Redis: a session created on A is joined through B.
- * Skipped unless REDIS_URL is set (e.g. `docker run --rm -p 6390:6379 redis:7-alpine`).
+ * Skipped unless REDIS_URL and DATABASE_URL are set (`make test-full` starts both in Docker).
  */
 import { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -10,7 +10,8 @@ import { silentLogger, TEST_DEF } from '../helpers.js'
 import { connect } from './ws-client.js'
 
 const REDIS_URL = process.env.REDIS_URL
-const describeIf = REDIS_URL ? describe : describe.skip
+const DATABASE_URL = process.env.DATABASE_URL
+const describeIf = REDIS_URL && DATABASE_URL ? describe : describe.skip
 
 describeIf('cluster mode (two instances, one Redis)', () => {
   let a: QuizServer
@@ -25,6 +26,7 @@ describeIf('cluster mode (two instances, one Redis)', () => {
         AUTO_CREATE_SESSIONS: 'false',
         DEMO_QUIZ_ID: '',
         REDIS_URL,
+        DATABASE_URL,
         INSTANCE_ID: id,
         SESSION_LEASE_MS: '2000',
         LOBBY_MS: '300',

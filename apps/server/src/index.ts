@@ -6,11 +6,7 @@ import { loadQuizBank } from './store/quiz-bank.js'
 loadDotEnv()
 const config = loadConfig()
 const definitions = loadQuizBank(fileURLToPath(new URL('../data/quizzes.json', import.meta.url)))
-const server = await createServer({
-  config,
-  definitions,
-  dataDir: fileURLToPath(new URL('../.data', import.meta.url)),
-})
+const server = await createServer({ config, definitions })
 
 server.logger.info(
   {

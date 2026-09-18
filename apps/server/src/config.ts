@@ -53,8 +53,8 @@ const Env = z.object({
    * restarts); unset elsewhere = random per boot: tokens die with the process and differ per instance.
    */
   AUTH_SECRET: z.string().min(16).optional(),
-  /** Optional Postgres URL. When set: quiz bank is read from the DB, sessions and results are archived. */
-  DATABASE_URL: z.string().optional(),
+  /** Postgres — required: quiz bank, accounts, ranked totals and the session archive live there. */
+  DATABASE_URL: z.string().min(1),
   /** Apply pending migrations at boot (handy in dev; run `pnpm db:migrate` explicitly in prod). */
   DB_AUTO_MIGRATE: z
     .string()
@@ -79,6 +79,10 @@ export function loadDotEnv(file = new URL('../.env', import.meta.url)): void {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  if (!env.DATABASE_URL)
+    throw new Error(
+      'DATABASE_URL is not set. This server needs Postgres: run `make pg-up`, then put DATABASE_URL in apps/server/.env (see .env.example) or export it.',
+    )
   const parsed = Env.safeParse(env)
   if (!parsed.success) {
     throw new Error(`invalid configuration: ${parsed.error.message}`)

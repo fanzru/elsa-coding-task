@@ -25,8 +25,7 @@ export interface HttpDeps {
   metrics: Metrics
   readiness: () => Promise<boolean>
   instanceId: string
-  /** Present when a database is configured. */
-  archive: SessionArchive | null
+  archive: SessionArchive
   auth: Auth
   ranking: RankingStore
 }
@@ -102,15 +101,13 @@ export function createHttpApp(deps: HttpDeps): Hono {
     return c.json(await deps.ranking.ranking(limit, me))
   })
 
-  // Archived data (Postgres). Live state above never touches the database.
+  // Archived data. Live state above never touches the database.
   app.get('/api/history', async (c) => {
-    if (!deps.archive) return c.json({ error: 'no database configured' }, 501)
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') ?? 20) || 20))
     return c.json({ sessions: await deps.archive.recentSessions(limit) })
   })
 
   app.get('/api/sessions/:quizId/results', async (c) => {
-    if (!deps.archive) return c.json({ error: 'no database configured' }, 501)
     const view = await deps.archive.results(c.req.param('quizId'))
     return view ? c.json(view) : c.json({ error: 'not found' }, 404)
   })

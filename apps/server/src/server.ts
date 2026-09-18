@@ -5,12 +5,11 @@
  */
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
-import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { sql } from 'kysely'
 import { type QuizActor, SessionRegistry, type SessionResolver } from './actor/index.js'
-import { createAuth, MemoryUserStore } from './auth.js'
+import { createAuth } from './auth.js'
 import { ClusterRegistry, RedisBus } from './cluster/index.js'
 import type { Config } from './config.js'
 import {
@@ -21,14 +20,11 @@ import {
   PostgresRanking,
   PostgresSessionArchive,
   PostgresUserStore,
-  type RankingStore,
   type SessionArchive,
-  type UserStore,
 } from './db/index.js'
 import { DEFAULT_RULES, type QuizDefinition } from './domain/index.js'
 import { createLogger, type Logger } from './observability/logger.js'
 import { createMetrics, type Metrics } from './observability/metrics.js'
-import { MemoryRanking } from './ranking.js'
 import { createHttpApp } from './transport/http.js'
 import { registerWebSocket } from './transport/ws.js'
 
@@ -39,7 +35,7 @@ export interface QuizServer {
   instanceId: string
   registry: SessionRegistry
   cluster: ClusterRegistry | null
-  archive: SessionArchive | null
+  archive: SessionArchive
   definitions: QuizDefinition[]
   metrics: Metrics
   logger: Logger
@@ -52,8 +48,6 @@ export interface CreateServerOptions {
   definitions: QuizDefinition[]
   logger?: Logger
   clock?: () => number
-  /** Without a database: keep accounts and ranked totals in JSON files here (unset = memory only). */
-  dataDir?: string
 }
 
 export async function createServer(opts: CreateServerOptions): Promise<QuizServer> {
@@ -67,49 +61,43 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
   const clock = opts.clock ?? Date.now
   const metrics = createMetrics()
 
-  // ---- persistence (optional) ------------------------------------------------------------
-  let db: Db | null = null
-  let archive: SessionArchive | null = null
-  const fileFor = (name: string) =>
-    !config.DATABASE_URL && opts.dataDir ? join(opts.dataDir, name) : undefined
-  let users: UserStore = new MemoryUserStore(fileFor('users.json'))
-  const memoryRanking = new MemoryRanking(fileFor('ranking.json'))
-  let ranking: RankingStore = memoryRanking
-  if (fileFor('users.json')) logger.info({ dir: opts.dataDir }, 'accounts and ranked totals kept in JSON files')
-  let definitions = opts.definitions
-  if (config.DATABASE_URL) {
-    db = createDb(config.DATABASE_URL)
-    if (config.DB_AUTO_MIGRATE) {
-      const { error, results } = await migrateToLatest(db)
-      if (error) throw error instanceof Error ? error : new Error(String(error))
-      for (const r of results ?? [])
-        logger.info({ migration: r.migrationName, status: r.status }, 'migration')
-    }
-    const store = new PostgresQuizStore(db)
-    let fromDb = await store.listQuizzes()
-    if (fromDb.length === 0 && config.DB_AUTO_SEED) {
-      await store.upsertQuizzes(opts.definitions)
-      fromDb = await store.listQuizzes()
-      logger.info({ quizzes: fromDb.length }, 'seeded quiz bank from data/quizzes.json')
-    }
-    if (fromDb.length > 0) definitions = fromDb
-    archive = new PostgresSessionArchive(db)
-    users = new PostgresUserStore(db)
-    ranking = new PostgresRanking(db)
-    logger.info(
-      { url: config.DATABASE_URL.replace(/\/\/.*@/, '//***@'), quizzes: definitions.length },
-      'database connected',
-    )
+  // ---- persistence (Postgres, required) ---------------------------------------------------
+  const db: Db = createDb(config.DATABASE_URL)
+  if (config.DB_AUTO_MIGRATE) {
+    const { error, results } = await migrateToLatest(db)
+    if (error) throw error instanceof Error ? error : new Error(String(error))
+    for (const r of results ?? [])
+      logger.info({ migration: r.migrationName, status: r.status }, 'migration')
   }
+  const store = new PostgresQuizStore(db)
+  let definitions = await store.listQuizzes()
+  if (definitions.length === 0 && config.DB_AUTO_SEED) {
+    await store.upsertQuizzes(opts.definitions)
+    definitions = await store.listQuizzes()
+    logger.info({ quizzes: definitions.length }, 'seeded quiz bank from data/quizzes.json')
+  }
+  if (definitions.length === 0) definitions = opts.definitions // empty bank, seeding off
+  const archive = new PostgresSessionArchive(db)
+  const users = new PostgresUserStore(db)
+  const ranking = new PostgresRanking(db)
+  logger.info(
+    { url: config.DATABASE_URL.replace(/\/\/.*@/, '//***@'), quizzes: definitions.length },
+    'database connected',
+  )
 
-  // ---- accounts (optional) ----------------------------------------------------------------
+  // ---- accounts ---------------------------------------------------------------------------
   if (!config.AUTH_SECRET && (config.REDIS_URL || config.NODE_ENV === 'production'))
     logger.warn('AUTH_SECRET is not set: login tokens will not survive a restart or work across instances')
   const auth = createAuth({ users, secret: config.AUTH_SECRET ?? randomBytes(32).toString('hex'), clock })
 
-  // Archive writes never block gameplay: fire-and-forget with logging.
+  // Archive writes never block gameplay: fire-and-forget with logging. `close()` drains them
+  // before the pool goes away, so a shutdown never loses the last results.
+  const inflight = new Set<Promise<unknown>>()
   const persist = (what: string, p: Promise<unknown>) => {
-    p.catch((err) => logger.error({ err, what }, 'archive write failed'))
+    const tracked: Promise<unknown> = p
+      .catch((err) => logger.error({ err, what }, 'archive write failed'))
+      .finally(() => inflight.delete(tracked))
+    inflight.add(tracked)
   }
 
   // ---- sessions ---------------------------------------------------------------------------
@@ -133,23 +121,19 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     autoCreate: config.AUTO_CREATE_SESSIONS,
     onCreated: (actor) => {
       void cluster?.onLocalCreated(actor)
-      if (archive) {
-        persist(
-          'session_created',
-          archive.sessionCreated(
-            actor.quizId,
-            actor.state.definition.id,
-            actor.state.rules,
-            instanceId,
-          ),
-        )
-      }
+      persist(
+        'session_created',
+        archive.sessionCreated(
+          actor.quizId,
+          actor.state.definition.id,
+          actor.state.rules,
+          instanceId,
+        ),
+      )
     },
     onDisposed: (actor) => void cluster?.onLocalDisposed(actor),
-    onQuizFinished: (state, standings) => {
-      if (archive) persist('session_finished', archive.sessionFinished(state, standings))
-      else memoryRanking.record(standings)
-    },
+    onQuizFinished: (state, standings) =>
+      persist('session_finished', archive.sessionFinished(state, standings)),
   })
 
   let bus: RedisBus | null = null
@@ -196,7 +180,7 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     readiness: async () => {
       try {
         if (bus && (await bus.client.ping()) !== 'PONG') return false
-        if (db) await sql`select 1`.execute(db)
+        await sql`select 1`.execute(db)
         return true
       } catch {
         return false
@@ -248,7 +232,8 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
       for (const client of nodeWs.wss.clients) client.terminate()
       await new Promise<void>((resolve) => server.close(() => resolve()))
       await bus?.close()
-      await db?.destroy()
+      await Promise.allSettled([...inflight])
+      await db.destroy()
     },
   }
 }

@@ -217,11 +217,13 @@ re-home restarts from the lobby) explicit rather than letting the doc imply dura
 *"It is for ranked play: people log in, play, see their rank, and invite friends."* The AI
 first checked the brief and DESIGN.md and pointed out auth is a stated non-goal, then built the
 smallest version: `scrypt` hashes and HMAC-signed bearer tokens from `node:crypto` (no new
-dependency, no session table), a `users` table (`0002_users`) or an in-memory `Map` without a
-database, three endpoints, and a `token` field on the WebSocket `join`. For ranked it proposed
-deriving the board from `session_results`, which the archive already writes (one SQL
-aggregate with `row_number()`), plus an in-memory twin for database-less runs — no new table,
-no second write path. The invite was already there (the room link); it only got a button on
+dependency, no session table), a `users` table (`0002_users`), three endpoints, and a `token`
+field on the WebSocket `join`. For ranked it proposed deriving the board from
+`session_results`, which the archive already writes (one SQL aggregate with `row_number()`) —
+no new table, no second write path. It first shipped in-memory twins of both stores for
+database-less runs; those wiped accounts on every dev restart, so I had it make Postgres
+mandatory and delete the fallbacks (the server now refuses to boot without `DATABASE_URL`, and
+`make dev` starts one in Docker). The invite was already there (the room link); it only got a button on
 the results screen.
 
 **Review notes / what I pushed back on:** the first sketch let a logged-in client just send its
@@ -237,8 +239,9 @@ bare account id and tampered token get `unauthorized`; two accounts and one anon
 finish a session → only the accounts are ranked, in score order, `me` is returned even outside
 the requested top and is `null` without a token); the Postgres test registers, logs in, plays a
 session and waits for the archive write to surface on `/api/ranking`; then the login and
-ranked modals driven by hand in the browser. Known limits are marked `ponytail:` in the code
-(in-memory users and totals, per-instance rate-limit buckets, aggregate-on-read ranking).
+ranked modals driven by hand in the browser. Integration tests run against a real Postgres
+(schema reset per file, files sequential). Known limits are marked `ponytail:` in the code
+(per-instance rate-limit buckets, aggregate-on-read ranking).
 
 ---
 

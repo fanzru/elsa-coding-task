@@ -4,8 +4,8 @@ A real-time quiz for an English-learning app: players join a session by code, an
 questions, and watch a live leaderboard. Built for the ELSA coding challenge.
 
 **Implemented component:** the real-time server (WebSocket transport, per-session actor,
-scoring, coalesced leaderboard fan-out, optional multi-instance mode over Redis, optional
-Postgres archive for the quiz bank and results), plus a demo web client and a shared typed
+scoring, coalesced leaderboard fan-out, optional multi-instance mode over Redis, Postgres for
+the quiz bank, accounts, ranked totals and results), plus a demo web client and a shared typed
 protocol. Auth and analytics are mocked.
 
 | | |
@@ -18,19 +18,23 @@ protocol. Auth and analytics are mocked.
 
 ## Quick start
 
-Requirements: Node ≥ 22 and pnpm ≥ 9 (`corepack enable` gives you pnpm). No database needed.
+Requirements: Node ≥ 22, pnpm ≥ 9 (`corepack enable` gives you pnpm) and Docker for Postgres.
 
 ```bash
 pnpm install
-pnpm dev            # server on http://localhost:4000, web on http://localhost:3000
+make dev            # Postgres (Docker) + server on http://localhost:4000 + web on http://localhost:3000
 ```
+
+Without `make`: run `make pg-up` once (or any Postgres), put its URL in `apps/server/.env` as
+`DATABASE_URL` (see `.env.example`), then `pnpm dev`. The server refuses to start without a
+database.
 
 There is also a `Makefile` wrapping every command below — `make help` lists them:
 
 ```bash
 make install        # pnpm install
-make dev            # server + web (WEB_PORT=3100 to change the web port)
-make check          # lint + typecheck + tests
+make dev            # Postgres + server + web (WEB_PORT=3100 to change the web port)
+make check          # lint + typecheck + tests (against the Docker Postgres)
 make test-redis     # full suite incl. cluster tests (starts/stops a Docker Redis)
 make load CLIENTS=2000
 make cluster        # docker compose: 2 server instances + Redis + web
@@ -75,35 +79,34 @@ your overall rank, and **Profile** (`/profile`) shows the account and its "My ra
 ranked. Invite friends with **Copy invite link** in a room or **Invite friends** on the results
 screen — the link lands them straight in the session.
 
-Users and the ranked board live in Postgres when `DATABASE_URL` is set (the board is derived
-from `session_results`, no extra table); without a database they are kept in JSON files under
-`apps/server/.data/` (gitignored), so a restart keeps them — single instance only. Set
-`AUTH_SECRET` so tokens survive a restart in production and are valid on every instance of a
-cluster (development uses a fixed dev secret).
+Users live in the `users` table; the ranked board is derived from `session_results` (no extra
+table). Set `AUTH_SECRET` so tokens survive a restart in production and are valid on every
+instance of a cluster (development uses a fixed dev secret).
 
 ## Tests
 
 ```bash
-pnpm test                 # protocol + domain + actor + integration (real WebSockets), ~8 s
+make test                 # starts the Docker Postgres if needed, then protocol + domain + actor + integration tests, ~15 s
 pnpm typecheck
 pnpm lint
 ```
 
-Cluster tests need a Redis and archive tests need a Postgres; both are skipped otherwise:
+Integration tests need `DATABASE_URL` (they reset that database's schema — use `quiz_test`, not
+your dev database) and cluster tests also need `REDIS_URL`; both groups are skipped otherwise:
 
 ```bash
 make test-full        # starts throwaway Redis + Postgres in Docker, runs everything, stops them
 # or by hand:
 docker run --rm -d -p 6390:6379 redis:7-alpine
-docker run --rm -d -p 5439:5432 -e POSTGRES_USER=quiz -e POSTGRES_PASSWORD=quiz -e POSTGRES_DB=quiz_test postgres:17-alpine
 REDIS_URL=redis://127.0.0.1:6390 DATABASE_URL=postgres://quiz:quiz@127.0.0.1:5439/quiz_test pnpm test
 ```
 
-## Database (Postgres, optional)
+## Database (Postgres)
 
-Set `DATABASE_URL` (or put it in `apps/server/.env`, see `.env.example`) and the server keeps the
-**quiz bank** and a **session archive** (every session, final standings per player, answers) in
-Postgres. Live gameplay never touches the database — it stays in the owning actor's memory.
+`DATABASE_URL` (env or `apps/server/.env`, see `.env.example`) points at the Postgres that holds
+the **quiz bank**, **accounts**, and the **session archive** (every session, final standings per
+player, answers; the ranked board is a query over it). Live gameplay never touches the
+database — it stays in the owning actor's memory.
 
 ```bash
 cp apps/server/.env.example apps/server/.env    # then edit DATABASE_URL
