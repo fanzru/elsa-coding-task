@@ -100,6 +100,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_QUIZ_HTTP_URL=${{ vars.QUIZ_HTTP_URL }}
             NEXT_PUBLIC_QUIZ_WS_URL=${{ vars.QUIZ_WS_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.SITE_URL }}
           tags: |
             ${{ steps.img.outputs.web }}:${{ env.VERSION }}
             ${{ steps.img.outputs.web }}:latest

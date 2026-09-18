@@ -70,13 +70,8 @@ export function AppShell({
   return (
     <Tooltip.Provider delayDuration={150}>
       <div className="min-h-dvh p-2 flex gap-2 items-start">
-        {/* Spacer keeps the main column clear of the floating dock. */}
-        <div
-          aria-hidden="true"
-          className={`hidden lg:block shrink-0 transition-[width] duration-150 ${minimized ? 'w-[52px]' : 'w-[212px]'}`}
-        />
         <aside
-          className={`card hidden lg:flex fixed left-2 bottom-2 z-20 max-h-[calc(100dvh-1rem)] overflow-y-auto flex-col rounded-2xl p-1.5 transition-[width] duration-150 ${
+          className={`card hidden lg:flex fixed left-2 bottom-2 z-20 max-h-[calc(100dvh-1rem)] overflow-y-auto overflow-x-hidden whitespace-nowrap flex-col rounded-2xl p-1.5 transition-[width] duration-200 ease-out ${
             minimized ? 'w-[52px]' : 'w-[212px]'
           }`}
         >
@@ -89,11 +84,23 @@ export function AppShell({
               <div className="lg:hidden">
                 <Drawer sidebar={sidebar} />
               </div>
+              <Link
+                href="/"
+                className="flex h-8 items-center gap-1.5 rounded-lg px-1.5 text-[13px] font-medium text-ink transition hover:bg-panel"
+              >
+                <Mascot size={18} />
+                Vocab Quiz
+              </Link>
             </div>
             <div className="text-[13px] text-ink-2 text-center truncate px-2">{topCenter}</div>
             <div className="flex items-center justify-end gap-2">{topRight}</div>
           </header>
-          <div className="flex-1 min-h-0 px-2 pb-2 flex flex-col">{children}</div>
+          {/* Symmetric side padding = dock width, so content centres on the viewport in both modes. */}
+          <div
+            className={`flex-1 min-h-0 px-2 pb-2 flex flex-col transition-[padding] duration-200 ease-out ${minimized ? 'lg:px-[60px]' : 'lg:px-[220px]'}`}
+          >
+            {children}
+          </div>
         </main>
       </div>
     </Tooltip.Provider>

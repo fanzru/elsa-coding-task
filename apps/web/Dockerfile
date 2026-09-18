@@ -10,7 +10,9 @@ RUN corepack enable
 WORKDIR /repo
 ARG NEXT_PUBLIC_QUIZ_HTTP_URL
 ARG NEXT_PUBLIC_QUIZ_WS_URL
-ENV NEXT_PUBLIC_QUIZ_HTTP_URL=$NEXT_PUBLIC_QUIZ_HTTP_URL NEXT_PUBLIC_QUIZ_WS_URL=$NEXT_PUBLIC_QUIZ_WS_URL
+# Public URL of the web app itself: makes og:image / canonical links absolute.
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_QUIZ_HTTP_URL=$NEXT_PUBLIC_QUIZ_HTTP_URL NEXT_PUBLIC_QUIZ_WS_URL=$NEXT_PUBLIC_QUIZ_WS_URL NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY packages/protocol ./packages/protocol
 COPY apps/web ./apps/web
