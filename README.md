@@ -39,7 +39,10 @@ make cluster        # docker compose: 2 server instances + Redis + web
 If port 3000 is busy on your machine, run the two halves separately:
 `pnpm dev:server` and `pnpm --filter @quiz/web exec next dev -p 3100`.
 
-Open http://localhost:3000, enter a name, keep the code `DEMO`, and join. Open the same page in
+Open http://localhost:3000, enter a name, keep the code `DEMO`, and join. **Host a session**
+asks for a topic first (Everyday, Academic, Travel, Business, Food, Idioms — from
+`apps/server/data/quizzes.json`, or the `quizzes.topic` column with Postgres) and then a quiz
+within it. Open the same page in
 two more tabs with different names to see the leaderboard move. Or use **Host a new session**
 to get a fresh 6-character code and share it.
 

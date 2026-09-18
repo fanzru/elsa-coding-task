@@ -5,6 +5,7 @@ import { createMetrics } from '../src/observability/metrics.js'
 export const TEST_DEF: QuizDefinition = {
   id: 'test-quiz',
   title: 'Test Quiz',
+  topic: 'Test',
   description: 'fixture',
   questions: [
     { id: 'q1', text: 'ubiquitous', options: ['rare', 'everywhere', 'cheap'], correctChoice: 1 },

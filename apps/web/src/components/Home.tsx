@@ -31,6 +31,7 @@ export function Home() {
   const [code, setCode] = useState('')
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([])
   const [definition, setDefinition] = useState('')
+  const [topic, setTopic] = useState('')
   const [live, setLive] = useState<{ sessions: number; players: number } | null>(null)
   const [offline, setOffline] = useState(false)
   const [hostOpen, setHostOpen] = useState(false)
@@ -61,7 +62,10 @@ export function Home() {
       .then((r) => r.json())
       .then((j: { quizzes: QuizSummary[] }) => {
         setQuizzes(j.quizzes)
-        if (j.quizzes[0]) setDefinition(j.quizzes[0].id)
+        if (j.quizzes[0]) {
+          setTopic(j.quizzes[0].topic)
+          setDefinition(j.quizzes[0].id)
+        }
       })
       .catch(() => setOffline(true))
 
@@ -141,6 +145,15 @@ export function Home() {
   }
 
   const canJoin = name.trim().length > 0 && code.trim().length > 0
+
+  // Topic first, then a quiz within it; switching topic selects that topic's first quiz.
+  const topics = [...new Set(quizzes.map((q) => q.topic))]
+  const inTopic = quizzes.filter((q) => q.topic === topic)
+  const pickTopic = (t: string) => {
+    setTopic(t)
+    const first = quizzes.find((q) => q.topic === t)
+    if (first) setDefinition(first.id)
+  }
 
   return (
     <AppShell
@@ -257,10 +270,28 @@ export function Home() {
         open={hostOpen}
         onOpenChange={setHostOpen}
         title="Host a new session"
-        description="Pick a quiz. You will get a 6-letter code to share."
+        description="Pick a topic and a quiz. You will get a 6-letter code to share."
       >
         <div className="space-y-3">
-          <QuizSelect quizzes={quizzes} value={definition} onChange={setDefinition} />
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Topic">
+            {topics.map((t) => (
+              <button
+                type="button"
+                key={t}
+                role="radio"
+                aria-checked={t === topic}
+                onClick={() => pickTopic(t)}
+                className={`h-7 rounded-full border px-3 text-[12px] transition ${
+                  t === topic
+                    ? 'border-accent bg-accent-3 text-accent-ink'
+                    : 'border-line bg-canvas text-ink-2 hover:bg-panel'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <QuizSelect quizzes={inTopic} value={definition} onChange={setDefinition} />
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}

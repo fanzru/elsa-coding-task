@@ -63,6 +63,7 @@ export class PostgresQuizStore implements QuizStore {
     return quizzes.map((q) => ({
       id: q.id,
       title: q.title,
+      topic: q.topic,
       description: q.description,
       questions: questions
         .filter((qq) => qq.quiz_id === q.id)
@@ -82,11 +83,20 @@ export class PostgresQuizStore implements QuizStore {
       for (const [position, def] of defs.entries()) {
         await trx
           .insertInto('quizzes')
-          .values({ id: def.id, title: def.title, description: def.description, position })
+          .values({
+            id: def.id,
+            title: def.title,
+            topic: def.topic,
+            description: def.description,
+            position,
+          })
           .onConflict((oc) =>
-            oc
-              .column('id')
-              .doUpdateSet({ title: def.title, description: def.description, position }),
+            oc.column('id').doUpdateSet({
+              title: def.title,
+              topic: def.topic,
+              description: def.description,
+              position,
+            }),
           )
           .execute()
         // Replace the question set wholesale so removed questions do not linger.

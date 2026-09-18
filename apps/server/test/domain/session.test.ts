@@ -13,6 +13,7 @@ import {
 const def: QuizDefinition = {
   id: 'vocab',
   title: 'Vocab',
+  topic: 'Test',
   description: '',
   questions: [
     { id: 'q1', text: 'ubiquitous', options: ['rare', 'everywhere'], correctChoice: 1 },

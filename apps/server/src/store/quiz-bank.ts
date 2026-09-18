@@ -20,6 +20,7 @@ const QuizSchema = z
   .object({
     id: z.string().min(1),
     title: z.string().min(1),
+    topic: z.string().min(1),
     description: z.string(),
     questions: z.array(QuestionSchema).min(1),
   })

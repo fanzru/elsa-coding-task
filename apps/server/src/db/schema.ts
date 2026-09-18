@@ -12,6 +12,7 @@ import type { AnswerRecord, SessionRules } from '../domain/types.js'
 export interface QuizzesTable {
   id: string
   title: string
+  topic: string
   description: string
   /** Display order in the catalogue; the first quiz is the default for new sessions. */
   position: number

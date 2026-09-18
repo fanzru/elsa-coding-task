@@ -20,6 +20,8 @@ export interface QuestionDefinition {
 export interface QuizDefinition {
   id: string
   title: string
+  /** Groups quizzes in the host dialog ("Travel", "Business", …). */
+  topic: string
   description: string
   questions: QuestionDefinition[]
 }

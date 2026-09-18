@@ -7,64 +7,115 @@
       {
         "id": "q01",
         "text": "What does \"reluctant\" mean?",
-        "options": ["Eager", "Unwilling", "Careless", "Grateful"],
+        "options": [
+          "Eager",
+          "Unwilling",
+          "Careless",
+          "Grateful"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q02",
         "text": "Choose the synonym of \"fragile\".",
-        "options": ["Sturdy", "Heavy", "Delicate", "Smooth"],
+        "options": [
+          "Sturdy",
+          "Heavy",
+          "Delicate",
+          "Smooth"
+        ],
         "correctChoice": 2
       },
       {
         "id": "q03",
         "text": "\"Ubiquitous\" means…",
-        "options": ["Rare", "Everywhere", "Expensive", "Ancient"],
+        "options": [
+          "Rare",
+          "Everywhere",
+          "Expensive",
+          "Ancient"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q04",
         "text": "Which word means \"to make something less severe\"?",
-        "options": ["Aggravate", "Alleviate", "Accumulate", "Allocate"],
+        "options": [
+          "Aggravate",
+          "Alleviate",
+          "Accumulate",
+          "Allocate"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q05",
         "text": "The opposite of \"generous\" is…",
-        "options": ["Stingy", "Kind", "Wealthy", "Polite"],
+        "options": [
+          "Stingy",
+          "Kind",
+          "Wealthy",
+          "Polite"
+        ],
         "correctChoice": 0
       },
       {
         "id": "q06",
         "text": "\"Ephemeral\" describes something that is…",
-        "options": ["Eternal", "Short-lived", "Enormous", "Invisible"],
+        "options": [
+          "Eternal",
+          "Short-lived",
+          "Enormous",
+          "Invisible"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q07",
         "text": "A \"meticulous\" person is…",
-        "options": ["Very careful", "Very lazy", "Very loud", "Very tall"],
+        "options": [
+          "Very careful",
+          "Very lazy",
+          "Very loud",
+          "Very tall"
+        ],
         "correctChoice": 0
       },
       {
         "id": "q08",
         "text": "To \"procrastinate\" is to…",
-        "options": ["Finish early", "Delay doing something", "Work quickly", "Give up"],
+        "options": [
+          "Finish early",
+          "Delay doing something",
+          "Work quickly",
+          "Give up"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q09",
         "text": "\"Candid\" means…",
-        "options": ["Secretive", "Honest and direct", "Sweet", "Nervous"],
+        "options": [
+          "Secretive",
+          "Honest and direct",
+          "Sweet",
+          "Nervous"
+        ],
         "correctChoice": 1
       },
       {
         "id": "q10",
         "text": "Which word means \"a feeling of great happiness\"?",
-        "options": ["Melancholy", "Anxiety", "Euphoria", "Fatigue"],
+        "options": [
+          "Melancholy",
+          "Anxiety",
+          "Euphoria",
+          "Fatigue"
+        ],
         "correctChoice": 2
       }
-    ]
+    ],
+    "topic": "Everyday"
   },
   {
     "id": "vocab-advanced",
@@ -74,14 +125,24 @@
       {
         "id": "a01",
         "text": "\"Obsequious\" means…",
-        "options": ["Excessively eager to please", "Stubborn", "Obscure", "Talkative"],
+        "options": [
+          "Excessively eager to please",
+          "Stubborn",
+          "Obscure",
+          "Talkative"
+        ],
         "correctChoice": 0,
         "timeLimitMs": 10000
       },
       {
         "id": "a02",
         "text": "A \"laconic\" reply is…",
-        "options": ["Long-winded", "Brief and to the point", "Angry", "Poetic"],
+        "options": [
+          "Long-winded",
+          "Brief and to the point",
+          "Angry",
+          "Poetic"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
       },
@@ -100,37 +161,447 @@
       {
         "id": "a04",
         "text": "To \"vacillate\" is to…",
-        "options": ["Vaccinate", "Waver between opinions", "Vacate a place", "Validate"],
+        "options": [
+          "Vaccinate",
+          "Waver between opinions",
+          "Vacate a place",
+          "Validate"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
       },
       {
         "id": "a05",
         "text": "\"Sanguine\" means…",
-        "options": ["Bloody", "Optimistic", "Sad", "Cautious"],
+        "options": [
+          "Bloody",
+          "Optimistic",
+          "Sad",
+          "Cautious"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
       },
       {
         "id": "a06",
         "text": "An \"esoteric\" topic is…",
-        "options": ["Popular", "Understood by few", "Easy", "Outdated"],
+        "options": [
+          "Popular",
+          "Understood by few",
+          "Easy",
+          "Outdated"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
       },
       {
         "id": "a07",
         "text": "\"Magnanimous\" means…",
-        "options": ["Enormous", "Generous and forgiving", "Magnetic", "Famous"],
+        "options": [
+          "Enormous",
+          "Generous and forgiving",
+          "Magnetic",
+          "Famous"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
       },
       {
         "id": "a08",
         "text": "\"Quixotic\" describes something…",
-        "options": ["Quick", "Idealistic but impractical", "Quiet", "Exotic"],
+        "options": [
+          "Quick",
+          "Idealistic but impractical",
+          "Quiet",
+          "Exotic"
+        ],
         "correctChoice": 1,
         "timeLimitMs": 10000
+      }
+    ],
+    "topic": "Academic"
+  },
+  {
+    "id": "vocab-travel",
+    "title": "Travel Words",
+    "topic": "Travel",
+    "description": "Eight words for airports, hotels and getting around.",
+    "questions": [
+      {
+        "id": "t01",
+        "text": "What is an \"itinerary\"?",
+        "options": [
+          "A planned route or schedule for a journey",
+          "A stamp in a passport",
+          "A hotel bill",
+          "A kind of travel insurance"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "t02",
+        "text": "A \"layover\" is…",
+        "options": [
+          "A window seat",
+          "A wait between connecting flights",
+          "A luggage cart",
+          "A boarding pass"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "t03",
+        "text": "An \"excursion\" is…",
+        "options": [
+          "A delayed flight",
+          "A travel visa",
+          "A short trip made for pleasure",
+          "A customs check"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "t04",
+        "text": "To \"commute\" means to…",
+        "options": [
+          "Pack a suitcase",
+          "Rent a car",
+          "Check into a hotel",
+          "Travel regularly between home and work"
+        ],
+        "correctChoice": 3
+      },
+      {
+        "id": "t05",
+        "text": "A \"detour\" is…",
+        "options": [
+          "A longer, roundabout route",
+          "A direct flight",
+          "A guided tour",
+          "A road sign"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "t06",
+        "text": "A \"souvenir\" is…",
+        "options": [
+          "A travel agent",
+          "Something kept as a reminder of a place",
+          "A train ticket",
+          "A local dish"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "t07",
+        "text": "\"Accommodation\" means…",
+        "options": [
+          "A meal plan",
+          "A currency exchange",
+          "A place to stay",
+          "A travel companion"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "t08",
+        "text": "To \"embark\" means to…",
+        "options": [
+          "Lose your luggage",
+          "Cancel a trip",
+          "Fall asleep",
+          "Board a ship or plane"
+        ],
+        "correctChoice": 3
+      }
+    ]
+  },
+  {
+    "id": "vocab-business",
+    "title": "Business English",
+    "topic": "Business",
+    "description": "Eight words from meetings, money and projects.",
+    "questions": [
+      {
+        "id": "b01",
+        "text": "A \"deadline\" is…",
+        "options": [
+          "The latest time something must be done",
+          "A company logo",
+          "A salary increase",
+          "A team meeting"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "b02",
+        "text": "\"Revenue\" is…",
+        "options": [
+          "Money owed to suppliers",
+          "Money a company earns from sales",
+          "Office rent",
+          "A tax refund"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "b03",
+        "text": "To \"negotiate\" means to…",
+        "options": [
+          "Fire an employee",
+          "Sign without reading",
+          "Discuss in order to reach an agreement",
+          "Delay a decision"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "b04",
+        "text": "A \"stakeholder\" is…",
+        "options": [
+          "A new employee",
+          "A competitor",
+          "A customer complaint",
+          "Someone with an interest in a business"
+        ],
+        "correctChoice": 3
+      },
+      {
+        "id": "b05",
+        "text": "An \"invoice\" is…",
+        "options": [
+          "A bill for goods or services",
+          "A job application",
+          "A meeting agenda",
+          "A price cut"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "b06",
+        "text": "To \"delegate\" means to…",
+        "options": [
+          "Cancel a project",
+          "Give a task to someone else",
+          "Work overtime",
+          "Write a report"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "b07",
+        "text": "A \"milestone\" is…",
+        "options": [
+          "A monthly salary",
+          "A company car",
+          "An important stage in a project",
+          "A coffee break"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "b08",
+        "text": "To \"outsource\" means to…",
+        "options": [
+          "Sell a product abroad",
+          "Close an office",
+          "Promote a worker",
+          "Hire an outside company to do the work"
+        ],
+        "correctChoice": 3
+      }
+    ]
+  },
+  {
+    "id": "vocab-food",
+    "title": "Food & Cooking",
+    "topic": "Food",
+    "description": "Eight words from the kitchen and the menu.",
+    "questions": [
+      {
+        "id": "f01",
+        "text": "To \"simmer\" means to…",
+        "options": [
+          "Cook gently just below boiling",
+          "Fry in deep oil",
+          "Cut into small pieces",
+          "Serve cold"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "f02",
+        "text": "\"Savory\" food is…",
+        "options": [
+          "Very sweet",
+          "Salty or spicy rather than sweet",
+          "Undercooked",
+          "Served as dessert"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "f03",
+        "text": "To \"garnish\" a dish means to…",
+        "options": [
+          "Burn it",
+          "Add too much salt",
+          "Decorate it with something small",
+          "Cook it slowly"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "f04",
+        "text": "To \"whisk\" means to…",
+        "options": [
+          "Boil for an hour",
+          "Peel the skin",
+          "Freeze overnight",
+          "Beat quickly with a light tool"
+        ],
+        "correctChoice": 3
+      },
+      {
+        "id": "f05",
+        "text": "\"Ripe\" fruit is…",
+        "options": [
+          "Fully grown and ready to eat",
+          "Spoiled",
+          "Frozen",
+          "Unwashed"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "f06",
+        "text": "\"Bland\" food is…",
+        "options": [
+          "Very spicy",
+          "Lacking strong flavor",
+          "Perfectly seasoned",
+          "Extremely sweet"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "f07",
+        "text": "To \"marinate\" means to…",
+        "options": [
+          "Bake in the oven",
+          "Serve with sauce",
+          "Soak in a seasoned liquid before cooking",
+          "Slice thinly"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "f08",
+        "text": "A \"portion\" is…",
+        "options": [
+          "A cooking pot",
+          "A recipe book",
+          "A kitchen knife",
+          "An amount of food served to one person"
+        ],
+        "correctChoice": 3
+      }
+    ]
+  },
+  {
+    "id": "vocab-idioms",
+    "title": "Idioms & Phrases",
+    "topic": "Idioms",
+    "description": "Eight everyday idioms. What do they really mean?",
+    "questions": [
+      {
+        "id": "i01",
+        "text": "To \"break the ice\" means to…",
+        "options": [
+          "Start a conversation in a social setting",
+          "Damage something",
+          "Cool a drink",
+          "Go skating"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "i02",
+        "text": "\"A piece of cake\" means…",
+        "options": [
+          "A birthday party",
+          "Something very easy",
+          "A small dessert",
+          "A polite request"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "i03",
+        "text": "To \"hit the books\" means to…",
+        "options": [
+          "Throw books away",
+          "Visit a library",
+          "Study hard",
+          "Write a novel"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "i04",
+        "text": "\"Under the weather\" means…",
+        "options": [
+          "Standing in the rain",
+          "Being outdoors",
+          "Feeling cold",
+          "Feeling slightly ill"
+        ],
+        "correctChoice": 3
+      },
+      {
+        "id": "i05",
+        "text": "To \"cost an arm and a leg\" means to…",
+        "options": [
+          "Be very expensive",
+          "Cause an injury",
+          "Take a long time",
+          "Be sold cheaply"
+        ],
+        "correctChoice": 0
+      },
+      {
+        "id": "i06",
+        "text": "\"On the fence\" means…",
+        "options": [
+          "Outside the house",
+          "Undecided",
+          "In agreement",
+          "Late for something"
+        ],
+        "correctChoice": 1
+      },
+      {
+        "id": "i07",
+        "text": "To \"call it a day\" means to…",
+        "options": [
+          "Name a holiday",
+          "Make a phone call",
+          "Stop working for now",
+          "Wake up early"
+        ],
+        "correctChoice": 2
+      },
+      {
+        "id": "i08",
+        "text": "\"Once in a blue moon\" means…",
+        "options": [
+          "Every night",
+          "At the start of a month",
+          "During a festival",
+          "Very rarely"
+        ],
+        "correctChoice": 3
       }
     ]
   }

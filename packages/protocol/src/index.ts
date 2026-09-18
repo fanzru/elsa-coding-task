@@ -232,6 +232,7 @@ export type SequencedServerMessage = Exclude<
 export const QuizSummary = z.object({
   id: z.string(),
   title: z.string(),
+  topic: z.string(),
   description: z.string(),
   totalQuestions: z.number().int(),
 })

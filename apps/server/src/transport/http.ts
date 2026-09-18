@@ -55,6 +55,7 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const quizzes: QuizSummary[] = deps.registry.definitions.map((d) => ({
       id: d.id,
       title: d.title,
+      topic: d.topic || 'General',
       description: d.description,
       totalQuestions: d.questions.length,
     }))
