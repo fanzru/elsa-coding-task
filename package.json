@@ -1,0 +1,26 @@
+{
+  "name": "elsa-realtime-quiz",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time vocabulary quiz \u2014 ELSA coding challenge (server + web client + shared protocol)",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "concurrently -n protocol,server,web -c gray,blue,magenta \"pnpm --filter @quiz/protocol dev\" \"pnpm --filter @quiz/server dev\" \"pnpm --filter @quiz/web dev\"",
+    "dev:server": "pnpm --filter @quiz/server dev",
+    "dev:web": "pnpm --filter @quiz/web dev",
+    "build": "pnpm --filter @quiz/protocol build && pnpm -r --filter '!@quiz/protocol' build",
+    "test": "pnpm --filter @quiz/protocol build && pnpm -r --if-present test",
+    "test:load": "pnpm --filter @quiz/server test:load",
+    "typecheck": "pnpm --filter @quiz/protocol build && pnpm -r --if-present typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "concurrently": "^10.0.5",
+    "typescript": "^5.9.3"
+  }
+}

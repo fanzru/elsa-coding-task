@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Native postinstall steps we explicitly allow (everything else is ignored by pnpm 11).
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
