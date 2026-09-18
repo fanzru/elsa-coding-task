@@ -10,6 +10,13 @@ REDIS_URL    ?= redis://127.0.0.1:$(REDIS_PORT)
 PG_PORT      ?= 5439
 DATABASE_URL      ?= postgres://quiz:quiz@127.0.0.1:$(PG_PORT)/quiz
 TEST_DATABASE_URL ?= postgres://quiz:quiz@127.0.0.1:$(PG_PORT)/quiz_test
+
+# With apps/server/.env present the server reads DATABASE_URL from it (your own Postgres);
+# without it, dev targets start the Docker Postgres above and point the server at it.
+ifeq ($(wildcard apps/server/.env),)
+  DEV_DB  = DATABASE_URL=$(DATABASE_URL)
+  DEV_DEP = pg-up
+endif
 WEB_PORT     ?= 3000
 SERVER_PORT  ?= 4000
 CLIENTS      ?= 1000
@@ -30,12 +37,12 @@ install: ## Install all workspace dependencies
 	pnpm install
 
 ##@ Run
-dev: pg-up ## Run Postgres (Docker), server (:4000) and web (:3000) with live reload; WEB_PORT/SERVER_PORT to change
-	DATABASE_URL=$(DATABASE_URL) PORT=$(SERVER_PORT) pnpm --filter @quiz/server dev & \
+dev: $(DEV_DEP) ## Server (:4000) + web (:3000) with live reload; Docker Postgres unless apps/server/.env exists
+	$(DEV_DB) PORT=$(SERVER_PORT) pnpm --filter @quiz/server dev & \
 	pnpm --filter @quiz/web exec next dev -p $(WEB_PORT); kill %1 2>/dev/null
 
-dev-server: pg-up ## Run only the quiz server (starts Postgres in Docker if needed)
-	DATABASE_URL=$(DATABASE_URL) PORT=$(SERVER_PORT) pnpm --filter @quiz/server dev
+dev-server: $(DEV_DEP) ## Run only the quiz server
+	$(DEV_DB) PORT=$(SERVER_PORT) pnpm --filter @quiz/server dev
 
 dev-web: ## Run only the web client
 	pnpm --filter @quiz/web exec next dev -p $(WEB_PORT)
@@ -43,8 +50,8 @@ dev-web: ## Run only the web client
 build: ## Production build (server → dist/, web → .next/)
 	pnpm build
 
-start: build pg-up ## Build, then run the production server and web
-	DATABASE_URL=$(DATABASE_URL) PORT=$(SERVER_PORT) NODE_ENV=production node apps/server/dist/index.js & \
+start: build $(DEV_DEP) ## Build, then run the production server and web
+	$(DEV_DB) PORT=$(SERVER_PORT) NODE_ENV=production node apps/server/dist/index.js & \
 	pnpm --filter @quiz/web exec next start -p $(WEB_PORT); kill %1 2>/dev/null
 
 ##@ Quality
