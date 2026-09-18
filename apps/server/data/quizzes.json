@@ -1,0 +1,137 @@
+[
+  {
+    "id": "vocab-everyday",
+    "title": "Everyday English Vocabulary",
+    "description": "Ten common words you will hear every day. Fast answers score more!",
+    "questions": [
+      {
+        "id": "q01",
+        "text": "What does \"reluctant\" mean?",
+        "options": ["Eager", "Unwilling", "Careless", "Grateful"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q02",
+        "text": "Choose the synonym of \"fragile\".",
+        "options": ["Sturdy", "Heavy", "Delicate", "Smooth"],
+        "correctChoice": 2
+      },
+      {
+        "id": "q03",
+        "text": "\"Ubiquitous\" means…",
+        "options": ["Rare", "Everywhere", "Expensive", "Ancient"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q04",
+        "text": "Which word means \"to make something less severe\"?",
+        "options": ["Aggravate", "Alleviate", "Accumulate", "Allocate"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q05",
+        "text": "The opposite of \"generous\" is…",
+        "options": ["Stingy", "Kind", "Wealthy", "Polite"],
+        "correctChoice": 0
+      },
+      {
+        "id": "q06",
+        "text": "\"Ephemeral\" describes something that is…",
+        "options": ["Eternal", "Short-lived", "Enormous", "Invisible"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q07",
+        "text": "A \"meticulous\" person is…",
+        "options": ["Very careful", "Very lazy", "Very loud", "Very tall"],
+        "correctChoice": 0
+      },
+      {
+        "id": "q08",
+        "text": "To \"procrastinate\" is to…",
+        "options": ["Finish early", "Delay doing something", "Work quickly", "Give up"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q09",
+        "text": "\"Candid\" means…",
+        "options": ["Secretive", "Honest and direct", "Sweet", "Nervous"],
+        "correctChoice": 1
+      },
+      {
+        "id": "q10",
+        "text": "Which word means \"a feeling of great happiness\"?",
+        "options": ["Melancholy", "Anxiety", "Euphoria", "Fatigue"],
+        "correctChoice": 2
+      }
+    ]
+  },
+  {
+    "id": "vocab-advanced",
+    "title": "Advanced Vocabulary Sprint",
+    "description": "Eight harder words, ten seconds each.",
+    "questions": [
+      {
+        "id": "a01",
+        "text": "\"Obsequious\" means…",
+        "options": ["Excessively eager to please", "Stubborn", "Obscure", "Talkative"],
+        "correctChoice": 0,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a02",
+        "text": "A \"laconic\" reply is…",
+        "options": ["Long-winded", "Brief and to the point", "Angry", "Poetic"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a03",
+        "text": "\"Pernicious\" describes something…",
+        "options": [
+          "Harmful in a gradual way",
+          "Pleasantly surprising",
+          "Extremely rare",
+          "Very old"
+        ],
+        "correctChoice": 0,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a04",
+        "text": "To \"vacillate\" is to…",
+        "options": ["Vaccinate", "Waver between opinions", "Vacate a place", "Validate"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a05",
+        "text": "\"Sanguine\" means…",
+        "options": ["Bloody", "Optimistic", "Sad", "Cautious"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a06",
+        "text": "An \"esoteric\" topic is…",
+        "options": ["Popular", "Understood by few", "Easy", "Outdated"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a07",
+        "text": "\"Magnanimous\" means…",
+        "options": ["Enormous", "Generous and forgiving", "Magnetic", "Famous"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      },
+      {
+        "id": "a08",
+        "text": "\"Quixotic\" describes something…",
+        "options": ["Quick", "Idealistic but impractical", "Quiet", "Exotic"],
+        "correctChoice": 1,
+        "timeLimitMs": 10000
+      }
+    ]
+  }
+]
