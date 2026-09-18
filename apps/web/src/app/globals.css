@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* Tokens. Restrained palette: white canvas, one warm grey for panels, hairline borders,
+   warm near-black text, one Playground blue accent. */
+@theme {
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Warm neutrals on a cream page (tryplayground.com-style) */
+  --color-canvas: #ffffff;
+  --color-page: #faf8f4;
+  --color-panel: #f4f2ec;
+  --color-panel-2: #ebe8e1;
+  --color-line: rgba(28, 25, 23, 0.08);
+  --color-line-2: rgba(28, 25, 23, 0.16);
+  --color-ink: #1c1917;
+  --color-ink-2: #57534e;
+  --color-mist: #8a8580;
+
+  /* Accent: Playground blue */
+  --color-accent: #1f5cf7;
+  --color-accent-hover: #1a4fd6;
+  --color-accent-2: #cee7fe;
+  --color-accent-3: #eef5ff;
+  --color-accent-ink: #0b3aa8;
+
+  --color-good: #2e9e4f;
+  --color-good-2: #e7f6e0;
+  --color-bad: #d9480f;
+  --color-bad-2: #fdeee6;
+
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 8px 24px -16px rgba(28, 25, 23, 0.18);
+  --shadow-pop: 0 4px 12px rgba(28, 25, 23, 0.08), 0 24px 48px -20px rgba(28, 25, 23, 0.25);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-up {
+  animation: fade-up 180ms ease-out;
+}
+
+@keyframes rowflash {
+  from {
+    background-color: var(--color-accent-3);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.rowflash {
+  animation: rowflash 900ms ease-out;
+}
+
+/* Elevated surface: sidebar, cards, leaderboard */
+.card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+}
+/* Radix dialog/select surfaces */
+.surface {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+}
