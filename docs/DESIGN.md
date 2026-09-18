@@ -359,8 +359,9 @@ submission focused on the real-time path.
   where it should.
 - **Tests at every layer** (`pnpm test`, 52 tests): domain unit + property tests, actor tests with
   fake connections and fake timers, integration tests over real WebSockets on an ephemeral port,
-  cluster tests with a real Redis (skipped without `REDIS_URL`). CI runs all of them plus a build on
-  every push to `main`, and adds lint and typecheck on pull requests (`.github/workflows/ci.yml`).
+  cluster tests with a real Redis (skipped without `REDIS_URL`). Tests run locally via `make test`;
+  CI only checks that both apps build (`.github/workflows/ci.yml`), so a release tag never
+  fails on the image build.
 - **Configuration** is a single validated `Config` object with documented defaults
   (`src/config.ts`); no magic numbers in the code paths.
 - **Strict TypeScript** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) and Biome for
