@@ -1,9 +1,11 @@
 name: CI
 
+# Pull requests: lint + typecheck + test + build. Pushes to main: test + build only.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -40,7 +42,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+        if: github.event_name != 'push'
       - run: pnpm typecheck
+        if: github.event_name != 'push'
       - run: pnpm test
         env:
           REDIS_URL: redis://127.0.0.1:6379
