@@ -1,0 +1,237 @@
+/**
+ * Everything the rest of the server needs from Postgres, behind two small interfaces so the
+ * actor/transport layers never see SQL and can run without a database at all.
+ */
+import type { LeaderboardEntry } from '@quiz/protocol'
+import { sql } from 'kysely'
+import type { QuizDefinition, SessionRules, SessionState } from '../domain/types.js'
+import type { Db } from './client.js'
+
+export interface QuizStore {
+  listQuizzes(): Promise<QuizDefinition[]>
+  /** Insert or update the given definitions (idempotent seed). */
+  upsertQuizzes(defs: QuizDefinition[]): Promise<void>
+}
+
+export interface SessionArchive {
+  sessionCreated(
+    code: string,
+    quizId: string,
+    rules: SessionRules,
+    instanceId: string,
+  ): Promise<void>
+  sessionFinished(state: SessionState, standings: LeaderboardEntry[]): Promise<void>
+  results(code: string): Promise<SessionResultsView | null>
+  recentSessions(limit: number): Promise<SessionSummary[]>
+}
+
+export interface SessionSummary {
+  code: string
+  quizId: string
+  status: string
+  createdAt: Date
+  finishedAt: Date | null
+  participants: number
+}
+
+export interface SessionResultsView extends SessionSummary {
+  standings: Array<{ rank: number; userId: string; name: string; score: number; streak: number }>
+}
+
+export class PostgresQuizStore implements QuizStore {
+  constructor(private readonly db: Db) {}
+
+  async listQuizzes(): Promise<QuizDefinition[]> {
+    const quizzes = await this.db
+      .selectFrom('quizzes')
+      .selectAll()
+      .orderBy('position')
+      .orderBy('id')
+      .execute()
+    if (quizzes.length === 0) return []
+    const questions = await this.db
+      .selectFrom('questions')
+      .selectAll()
+      .where(
+        'quiz_id',
+        'in',
+        quizzes.map((q) => q.id),
+      )
+      .orderBy('quiz_id')
+      .orderBy('position')
+      .execute()
+    return quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      description: q.description,
+      questions: questions
+        .filter((qq) => qq.quiz_id === q.id)
+        .map((qq) => ({
+          id: qq.id,
+          text: qq.text,
+          options: qq.options,
+          correctChoice: qq.correct_choice,
+          ...(qq.time_limit_ms !== null ? { timeLimitMs: qq.time_limit_ms } : {}),
+          ...(qq.points !== null ? { points: qq.points } : {}),
+        })),
+    }))
+  }
+
+  async upsertQuizzes(defs: QuizDefinition[]): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      for (const [position, def] of defs.entries()) {
+        await trx
+          .insertInto('quizzes')
+          .values({ id: def.id, title: def.title, description: def.description, position })
+          .onConflict((oc) =>
+            oc
+              .column('id')
+              .doUpdateSet({ title: def.title, description: def.description, position }),
+          )
+          .execute()
+        // Replace the question set wholesale so removed questions do not linger.
+        await trx.deleteFrom('questions').where('quiz_id', '=', def.id).execute()
+        await trx
+          .insertInto('questions')
+          .values(
+            def.questions.map((q, i) => ({
+              quiz_id: def.id,
+              id: q.id,
+              position: i,
+              text: q.text,
+              options: JSON.stringify(q.options),
+              correct_choice: q.correctChoice,
+              time_limit_ms: q.timeLimitMs ?? null,
+              points: q.points ?? null,
+            })),
+          )
+          .execute()
+      }
+    })
+  }
+}
+
+export class PostgresSessionArchive implements SessionArchive {
+  constructor(private readonly db: Db) {}
+
+  async sessionCreated(
+    code: string,
+    quizId: string,
+    rules: SessionRules,
+    instanceId: string,
+  ): Promise<void> {
+    // One transaction: a restarted session reuses its code, so resetting the row and dropping
+    // the previous standings must be observed together.
+    await this.db.transaction().execute(async (trx) => {
+      await trx
+        .insertInto('sessions')
+        .values({
+          code,
+          quiz_id: quizId,
+          rules: JSON.stringify(rules),
+          instance_id: instanceId,
+          finished_at: null,
+        })
+        .onConflict((oc) =>
+          oc.column('code').doUpdateSet({
+            quiz_id: quizId,
+            rules: JSON.stringify(rules),
+            instance_id: instanceId,
+            status: 'created',
+            finished_at: null,
+            created_at: sql`now()`,
+          }),
+        )
+        .execute()
+      await trx.deleteFrom('session_results').where('session_code', '=', code).execute()
+    })
+  }
+
+  async sessionFinished(state: SessionState, standings: LeaderboardEntry[]): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      await trx
+        .updateTable('sessions')
+        .set({ status: 'finished', finished_at: new Date() })
+        .where('code', '=', state.quizId)
+        .execute()
+      await trx.deleteFrom('session_results').where('session_code', '=', state.quizId).execute()
+      if (standings.length === 0) return
+      await trx
+        .insertInto('session_results')
+        .values(
+          standings.map((e) => ({
+            session_code: state.quizId,
+            user_id: e.userId,
+            name: e.name,
+            rank: e.rank,
+            score: e.score,
+            streak: e.streak,
+            answers: JSON.stringify(Object.fromEntries(state.players.get(e.userId)?.answers ?? [])),
+          })),
+        )
+        .execute()
+    })
+  }
+
+  async results(code: string): Promise<SessionResultsView | null> {
+    const session = await this.db
+      .selectFrom('sessions')
+      .selectAll()
+      .where('code', '=', code)
+      .executeTakeFirst()
+    if (!session) return null
+    const rows = await this.db
+      .selectFrom('session_results')
+      .select(['rank', 'user_id', 'name', 'score', 'streak'])
+      .where('session_code', '=', code)
+      .orderBy('rank')
+      .execute()
+    return {
+      code: session.code,
+      quizId: session.quiz_id,
+      status: session.status,
+      createdAt: session.created_at,
+      finishedAt: session.finished_at,
+      participants: rows.length,
+      standings: rows.map((r) => ({
+        rank: r.rank,
+        userId: r.user_id,
+        name: r.name,
+        score: r.score,
+        streak: r.streak,
+      })),
+    }
+  }
+
+  async recentSessions(limit: number): Promise<SessionSummary[]> {
+    const rows = await this.db
+      .selectFrom('sessions')
+      .leftJoin('session_results', 'session_results.session_code', 'sessions.code')
+      .select(({ fn }) => [
+        'sessions.code',
+        'sessions.quiz_id',
+        'sessions.status',
+        'sessions.created_at',
+        'sessions.finished_at',
+        fn.count<number>('session_results.user_id').as('participants'),
+      ])
+      .groupBy([
+        'sessions.code',
+        'sessions.quiz_id',
+        'sessions.status',
+        'sessions.created_at',
+        'sessions.finished_at',
+      ])
+      .orderBy('sessions.created_at', 'desc')
+      .limit(limit)
+      .execute()
+    return rows.map((r) => ({
+      code: r.code,
+      quizId: r.quiz_id,
+      status: r.status,
+      createdAt: r.created_at,
+      finishedAt: r.finished_at,
+      participants: Number(r.participants),
+    }))
+  }
+}
