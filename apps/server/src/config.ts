@@ -48,7 +48,10 @@ const Env = z.object({
   /** Session ownership lease; renewed every third of this. */
   SESSION_LEASE_MS: z.coerce.number().int().min(1_000).default(15_000),
 
-  /** Signs login tokens. Unset = random per boot: tokens die with the process and differ per instance. */
+  /**
+   * Signs login tokens. Unset in development = a fixed dev secret (tokens survive the watch
+   * restarts); unset elsewhere = random per boot: tokens die with the process and differ per instance.
+   */
   AUTH_SECRET: z.string().min(16).optional(),
   /** Optional Postgres URL. When set: quiz bank is read from the DB, sessions and results are archived. */
   DATABASE_URL: z.string().optional(),
@@ -80,5 +83,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!parsed.success) {
     throw new Error(`invalid configuration: ${parsed.error.message}`)
   }
-  return parsed.data
+  const config = parsed.data
+  if (!config.AUTH_SECRET && config.NODE_ENV === 'development')
+    config.AUTH_SECRET = 'dev-only-secret-never-use-in-production'
+  return config
 }

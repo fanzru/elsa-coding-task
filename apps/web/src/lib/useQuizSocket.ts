@@ -21,7 +21,7 @@ import {
   type ServerMessage,
 } from '@quiz/protocol'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import { loadSession } from './auth'
+import { loadSession, saveSession } from './auth'
 import { WS_URL } from './config'
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'closed'
@@ -165,6 +165,7 @@ export function useQuizSocket(quizId: string, name: string) {
     let ws: WebSocket | null = null
     let closedIntentionally = false
     let attempts = 0
+    let guestFallback = false
     let retryTimer: ReturnType<typeof setTimeout> | null = null
 
     const connect = () => {
@@ -190,6 +191,8 @@ export function useQuizSocket(quizId: string, name: string) {
         }
         // Logged in: the token decides who we are; the server ignores name/userId then.
         const token = loadSession()?.token
+        // An account id remembered from a logged-in game is only valid with a token.
+        if (userId?.startsWith('u_') && !token) userId = undefined
         socket.send(
           JSON.stringify({
             type: 'join',
@@ -208,6 +211,14 @@ export function useQuizSocket(quizId: string, name: string) {
           console.warn('dropped message that does not match the protocol', evt.data)
           return
         }
+        if (msg.type === 'error' && msg.code === 'unauthorized' && !guestFallback) {
+          // Stale login (token expired, or the server restarted with a new AUTH_SECRET): drop it
+          // and carry on as a guest rather than leaving the player stuck on an error.
+          guestFallback = true
+          saveSession(null)
+          socket.send(JSON.stringify({ type: 'join', quizId, name }))
+          return
+        }
         if (msg.type === 'welcome') {
           try {
             localStorage.setItem(storageKey(quizId, name), msg.you.userId)
@@ -216,6 +227,12 @@ export function useQuizSocket(quizId: string, name: string) {
           }
         }
         dispatch({ type: 'server', msg, receivedAt: Date.now() })
+        if (msg.type === 'welcome' && guestFallback)
+          dispatch({
+            type: 'error',
+            message:
+              'Your login had expired, so this game counts as a guest. Log in again from the home page for ranked play.',
+          })
       }
 
       socket.onclose = (evt) => {
