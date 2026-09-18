@@ -20,7 +20,7 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-ink/25" />
+        <Dialog.Overlay className="fixed inset-0 bg-ink/25 backdrop-blur-sm" />
         <Dialog.Content className="surface fixed left-1/2 top-1/2 w-[min(92vw,400px)] -translate-x-1/2 -translate-y-1/2 p-5 outline-none fade-up">
           <div className="flex items-start justify-between gap-4">
             <div>

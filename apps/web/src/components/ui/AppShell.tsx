@@ -221,7 +221,7 @@ function Drawer({ sidebar }: { sidebar: SidebarProps }) {
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-ink/25" />
+        <Dialog.Overlay className="fixed inset-0 bg-ink/25 backdrop-blur-sm" />
         <Dialog.Content className="card fixed left-2 top-2 w-[240px] max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl p-1.5 flex flex-col outline-none fade-up">
           <Dialog.Title className="sr-only">Menu</Dialog.Title>
           <Dialog.Close asChild>
