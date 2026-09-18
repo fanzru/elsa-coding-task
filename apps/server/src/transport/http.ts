@@ -12,7 +12,8 @@ import {
   type SessionRegistry,
 } from '../actor/index.js'
 import { DefinitionNotFoundError } from '../actor/registry.js'
-import type { SessionArchive } from '../db/repository.js'
+import type { Auth } from '../auth.js'
+import type { RankingStore, SessionArchive } from '../db/repository.js'
 import type { Logger } from '../observability/logger.js'
 import type { Metrics } from '../observability/metrics.js'
 
@@ -26,6 +27,8 @@ export interface HttpDeps {
   instanceId: string
   /** Present when a database is configured. */
   archive: SessionArchive | null
+  auth: Auth
+  ranking: RankingStore
 }
 
 export function createHttpApp(deps: HttpDeps): Hono {
@@ -45,6 +48,8 @@ export function createHttpApp(deps: HttpDeps): Hono {
     c.header('Content-Type', deps.metrics.registry.contentType)
     return c.body(await deps.metrics.registry.metrics())
   })
+
+  app.route('/api/auth', deps.auth.routes)
 
   app.get('/api/quizzes', (c) => {
     const quizzes: QuizSummary[] = deps.registry.definitions.map((d) => ({
@@ -86,6 +91,14 @@ export function createHttpApp(deps: HttpDeps): Hono {
     if (!actor) return c.json({ error: 'not found' }, 404)
     actor.start()
     return c.json(actor.info())
+  })
+
+  // Ranked board: accounts only, totals across finished sessions. Bearer token → `me`.
+  app.get('/api/ranking', async (c) => {
+    const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') ?? 50) || 50))
+    const bearer = c.req.header('authorization')?.replace(/^Bearer\s+/i, '')
+    const me = bearer ? deps.auth.verifyToken(bearer)?.sub : undefined
+    return c.json(await deps.ranking.ranking(limit, me))
   })
 
   // Archived data (Postgres). Live state above never touches the database.

@@ -1,24 +1,30 @@
 'use client'
 
-import type { QuizSummary, SessionInfo } from '@quiz/protocol'
+import type { QuizSummary, RankedPlayer, SessionInfo } from '@quiz/protocol'
 import {
   ArrowUpIcon,
+  BarChartIcon,
   ChevronRightIcon,
   EnterIcon,
+  ExitIcon,
   InfoCircledIcon,
+  PersonIcon,
   PlusCircledIcon,
   RocketIcon,
 } from '@radix-ui/react-icons'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { type AuthSession, loadSession, saveSession } from '@/lib/auth'
 import { HTTP_URL } from '@/lib/config'
 import { AppShell } from './ui/AppShell'
+import { AuthModal } from './ui/AuthModal'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { HowItWorks } from './ui/HowItWorks'
 import { Mascot } from './ui/Mascot'
 import { Modal } from './ui/Modal'
 import { QuizSelect } from './ui/QuizSelect'
+import { fetchRanking, RankedModal } from './ui/RankedModal'
 
 export function Home() {
   const router = useRouter()
@@ -30,6 +36,10 @@ export function Home() {
   const [offline, setOffline] = useState(false)
   const [hostOpen, setHostOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [session, setSession] = useState<AuthSession | null>(null)
+  const [rankedOpen, setRankedOpen] = useState(false)
+  const [myRank, setMyRank] = useState<RankedPlayer | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [clock, setClock] = useState('')
@@ -38,6 +48,8 @@ export function Home() {
     try {
       const saved = localStorage.getItem('quiz:name')
       if (saved) setName(saved)
+      const s = loadSession()
+      if (s) signIn(s)
     } catch {
       /* ignore */
     }
@@ -71,6 +83,26 @@ export function Home() {
       clearInterval(p)
     }
   }, [])
+
+  useEffect(() => {
+    if (!session) {
+      setMyRank(null)
+      return
+    }
+    fetchRanking(1)
+      .then((r) => setMyRank(r.me))
+      .catch(() => undefined)
+  }, [session])
+
+  // A logged-in player plays under the account name; the server enforces it from the token.
+  const signIn = (s: AuthSession) => {
+    setSession(s)
+    setName(s.user.name)
+  }
+  const signOut = () => {
+    saveSession(null)
+    setSession(null)
+  }
 
   const remember = () => {
     try {
@@ -126,8 +158,12 @@ export function Home() {
             label: 'Join with code',
             onSelect: () => document.getElementById('code')?.focus(),
           },
+          { icon: <BarChartIcon />, label: 'Ranked', onSelect: () => setRankedOpen(true) },
         ],
         secondary: [
+          session
+            ? { icon: <ExitIcon />, label: `Log out (${session.user.name})`, onSelect: signOut }
+            : { icon: <PersonIcon />, label: 'Log in', onSelect: () => setAuthOpen(true) },
           {
             icon: <InfoCircledIcon />,
             label: 'How scoring works',
@@ -140,10 +176,9 @@ export function Home() {
           onSelect: () => setRulesOpen(true),
         },
       }}
-      topCenter="Vocab Quiz"
       topRight={<Button onClick={() => setHostOpen(true)}>Host a session</Button>}
     >
-      <div className="mx-auto my-auto flex w-full max-w-[520px] flex-col items-center gap-5 px-2 pt-10 pb-6 sm:py-6 fade-up">
+      <div className="mx-auto my-auto flex w-full max-w-[520px] flex-col items-center gap-5 px-2 pt-10 pb-6 sm:pt-6 sm:pb-20 fade-up">
         <div className="flex flex-col items-center text-center">
           <Mascot size={36} />
           <p className="mt-3 text-[11px] text-mist">
@@ -151,6 +186,18 @@ export function Home() {
             {live
               ? ` · ${live.players} player${live.players === 1 ? '' : 's'} online · ${live.sessions} session${live.sessions === 1 ? '' : 's'}`
               : ''}
+            {myRank && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  onClick={() => setRankedOpen(true)}
+                  className="text-accent hover:underline"
+                >
+                  ranked #{myRank.rank} · {myRank.totalScore.toLocaleString()} pts
+                </button>
+              </>
+            )}
           </p>
           <h1 className="mt-1.5 text-[26px] font-bold tracking-[-0.02em]">Learn words, live.</h1>
           <p className="mt-1.5 max-w-[340px] text-[13px] leading-relaxed text-ink-2">
@@ -190,7 +237,9 @@ export function Home() {
                 onChange={(e) => setName(e.target.value)}
                 maxLength={24}
                 placeholder="Your name"
-                className="h-8 flex-1 min-w-0 rounded-lg bg-panel border border-line px-3.5 text-[13px] outline-none placeholder:text-mist focus:bg-canvas focus:border-accent"
+                readOnly={session !== null}
+                title={session ? 'Playing as your account — log out to change' : undefined}
+                className="h-8 flex-1 min-w-0 rounded-lg bg-panel border border-line px-3.5 text-[13px] outline-none placeholder:text-mist focus:bg-canvas focus:border-accent read-only:text-ink-2"
               />
               <button
                 type="submit"
@@ -223,7 +272,8 @@ export function Home() {
             onChange={(e) => setName(e.target.value)}
             maxLength={24}
             placeholder="Your name"
-            className="h-9 w-full rounded-lg bg-panel border border-line px-3.5 text-[13px] outline-none placeholder:text-mist focus:bg-canvas focus:border-accent"
+            readOnly={session !== null}
+            className="h-9 w-full rounded-lg bg-panel border border-line px-3.5 text-[13px] outline-none placeholder:text-mist focus:bg-canvas focus:border-accent read-only:text-ink-2"
           />
           {error && <p className="text-sm text-bad">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
@@ -237,6 +287,8 @@ export function Home() {
         </div>
       </Modal>
 
+      <AuthModal open={authOpen} onOpenChange={setAuthOpen} onDone={signIn} />
+      <RankedModal open={rankedOpen} onOpenChange={setRankedOpen} />
       <HowItWorks open={rulesOpen} onOpenChange={setRulesOpen} />
     </AppShell>
   )

@@ -37,7 +37,8 @@
 - *Clients lie, disconnect and retry.* Timing must be server-authoritative and every message
   idempotent. → server-measured elapsed time, first-answer-wins (§6), snapshot-then-stream (§4).
 
-**Non-goals for this submission**: authentication (a display name is enough), a question
+**Non-goals for this submission**: real authentication (a display name is enough to play; the
+optional register/login in README §Accounts is a thin extra, not a requirement), a question
 authoring UI, persisting results beyond the session, mobile apps.
 
 ## 2. Architecture

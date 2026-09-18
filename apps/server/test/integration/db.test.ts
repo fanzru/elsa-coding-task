@@ -170,6 +170,41 @@ describeIf('postgres archive', () => {
     bo.close()
   }, 30_000)
 
+  it('stores accounts in postgres, unique case-insensitively', async () => {
+    const post = (path: string, body: unknown) =>
+      fetch(`${server.url}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    expect((await post('/api/auth/register', { username: 'Dana', password: 'correct horse' })).status).toBe(201)
+    expect((await post('/api/auth/register', { username: 'DANA', password: 'correct horse' })).status).toBe(409)
+    const login = await post('/api/auth/login', { username: 'dana', password: 'correct horse' })
+    expect(login.status).toBe(200)
+    expect(await db.selectFrom('users').select('username').execute()).toEqual([{ username: 'Dana' }])
+
+    // One finished session as Dana → ranked board derived from session_results
+    const { token, user } = (await login.json()) as { token: string; user: { id: string } }
+    const created = await post('/api/sessions', {
+      quizId: 'RANKED',
+      overrides: { lobbyMs: 100, questionTimeLimitMs: 1_000, revealMs: 50 },
+    })
+    expect(created.status).toBe(201)
+    const dana = await connect(server.wsUrl)
+    dana.send({ type: 'join', quizId: 'RANKED', name: 'x', token })
+    const q = await dana.next('question')
+    dana.send({ type: 'answer', questionId: q.question.id, choice: 1 })
+    await dana.next('quiz_end', () => true, 15_000)
+    dana.close()
+    const ranking = () =>
+      fetch(`${server.url}/api/ranking`, { headers: { authorization: `Bearer ${token}` } }).then(
+        (r) => r.json() as Promise<{ me: { rank: number; games: number; wins: number } | null }>,
+      )
+    await waitFor(async () => (await ranking()).me !== null)
+    expect((await ranking()).me).toMatchObject({ rank: 1, games: 1, wins: 1 })
+    expect((await ranking()).me).toMatchObject({ userId: user.id })
+  }, 20_000)
+
   it('reports readiness with the database in the loop', async () => {
     expect((await fetch(`${server.url}/readyz`)).status).toBe(200)
   })

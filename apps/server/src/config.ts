@@ -48,6 +48,8 @@ const Env = z.object({
   /** Session ownership lease; renewed every third of this. */
   SESSION_LEASE_MS: z.coerce.number().int().min(1_000).default(15_000),
 
+  /** Signs login tokens. Unset = random per boot: tokens die with the process and differ per instance. */
+  AUTH_SECRET: z.string().min(16).optional(),
   /** Optional Postgres URL. When set: quiz bank is read from the DB, sessions and results are archived. */
   DATABASE_URL: z.string().optional(),
   /** Apply pending migrations at boot (handy in dev; run `pnpm db:migrate` explicitly in prod). */

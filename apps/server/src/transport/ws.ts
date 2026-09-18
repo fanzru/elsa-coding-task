@@ -12,6 +12,7 @@ import type { WSContext } from 'hono/ws'
 import type { WebSocket } from 'ws'
 import type { Connection, SessionHandle, SessionResolver } from '../actor/index.js'
 import { DefinitionNotFoundError, SessionNotFoundError } from '../actor/index.js'
+import type { AuthClaims } from '../auth.js'
 import type { Logger } from '../observability/logger.js'
 import type { Metrics } from '../observability/metrics.js'
 import { TokenBucket } from './rate-limit.js'
@@ -22,6 +23,7 @@ export interface WsDeps {
   metrics: Metrics
   clock: () => number
   newUserId: () => string
+  verifyToken: (token: string) => AuthClaims | null
   options: {
     backpressureBytes: number
     heartbeatMs: number
@@ -88,6 +90,23 @@ export function registerWebSocket(app: Hono, nodeWs: NodeWebSocket, deps: WsDeps
             ws.send(JSON.stringify({ type: 'pong', serverTime: deps.clock() }))
             return
           case 'join': {
+            // Identity: a token pins it server-side; otherwise the client's name and (for a
+            // reconnect) its server-issued id are taken as given. Account ids show up on the
+            // leaderboard, so a bare `u_…` id without a token is refused.
+            let name = msg.name
+            let userId = msg.userId ?? deps.newUserId()
+            if (msg.token) {
+              const claims = deps.verifyToken(msg.token)
+              if (!claims) {
+                sendError(ws, 'unauthorized', 'invalid or expired token — log in again')
+                return
+              }
+              name = claims.name
+              userId = claims.sub
+            } else if (userId.startsWith('u_')) {
+              sendError(ws, 'unauthorized', 'log in to play as this account')
+              return
+            }
             let target: SessionHandle
             try {
               target = await deps.sessions.resolveForJoin(msg.quizId)
@@ -101,10 +120,12 @@ export function registerWebSocket(app: Hono, nodeWs: NodeWebSocket, deps: WsDeps
             if (!conn) return // socket closed while we were resolving
             if (session && session !== target) session.detach(conn)
             session = target
-            const userId = msg.userId ?? deps.newUserId()
             log = deps.logger.child({ connId: conn.id, quizId: msg.quizId, userId })
-            session.join(conn, msg.name, userId, msg.lastSeq)
-            log.debug({ name: msg.name, reconnect: msg.userId !== undefined }, 'joined')
+            session.join(conn, name, userId, msg.lastSeq)
+            log.debug(
+              { name, reconnect: msg.userId !== undefined, account: msg.token !== undefined },
+              'joined',
+            )
             return
           }
           case 'answer':

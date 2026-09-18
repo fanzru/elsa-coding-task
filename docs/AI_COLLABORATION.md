@@ -211,6 +211,35 @@ the AI's estimates. I corrected the cross-instance sequence diagram (batching ha
 owner per gateway, not per socket) and made the "known limitation" (in-memory session state,
 re-home restarts from the lobby) explicit rather than letting the doc imply durability.
 
+## #11 — Optional accounts and ranked play (`apps/server/src/auth.ts`, `ranking.ts`, `apps/web/src/components/ui/{AuthModal,RankedModal}.tsx`)
+
+**Task:** *"Add register and login, as thin as possible — the brief does not ask for it."* Then:
+*"It is for ranked play: people log in, play, see their rank, and invite friends."* The AI
+first checked the brief and DESIGN.md and pointed out auth is a stated non-goal, then built the
+smallest version: `scrypt` hashes and HMAC-signed bearer tokens from `node:crypto` (no new
+dependency, no session table), a `users` table (`0002_users`) or an in-memory `Map` without a
+database, three endpoints, and a `token` field on the WebSocket `join`. For ranked it proposed
+deriving the board from `session_results`, which the archive already writes (one SQL
+aggregate with `row_number()`), plus an in-memory twin for database-less runs — no new table,
+no second write path. The invite was already there (the room link); it only got a button on
+the results screen.
+
+**Review notes / what I pushed back on:** the first sketch let a logged-in client just send its
+account id as `userId` — but ids are visible on the leaderboard, so anyone could impersonate an
+account. Fix: the token is verified on `join` and a bare `u_…` id without a token is refused.
+Also added: one identical 401 for "unknown user" and "wrong password", a per-IP token bucket
+on `/api/auth/*` (reusing the WebSocket limiter), and case-insensitive uniqueness via an index
+on `lower(username)` with the `23505` unique-violation mapped to 409.
+
+**Verification:** `tsc` strict; three integration tests over HTTP + real WebSockets (register →
+duplicate 409 → bad input 400 → wrong/unknown 401 → login → `/me`; token pins `you` on join,
+bare account id and tampered token get `unauthorized`; two accounts and one anonymous player
+finish a session → only the accounts are ranked, in score order, `me` is returned even outside
+the requested top and is `null` without a token); the Postgres test registers, logs in, plays a
+session and waits for the archive write to surface on `/api/ranking`; then the login and
+ranked modals driven by hand in the browser. Known limits are marked `ponytail:` in the code
+(in-memory users and totals, per-instance rate-limit buckets, aggregate-on-read ranking).
+
 ---
 
 ## What worked, what did not

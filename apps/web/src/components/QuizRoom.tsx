@@ -1,8 +1,10 @@
 'use client'
 
+import type { RankedPlayer } from '@quiz/protocol'
 import { CheckIcon, CopyIcon, ExitIcon, InfoCircledIcon, PersonIcon } from '@radix-ui/react-icons'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { loadSession } from '@/lib/auth'
 import { HTTP_URL } from '@/lib/config'
 import { useQuizSocket } from '@/lib/useQuizSocket'
 import { Leaderboard } from './Leaderboard'
@@ -13,10 +15,18 @@ import { Card } from './ui/Card'
 import { HowItWorks } from './ui/HowItWorks'
 import { Mascot } from './ui/Mascot'
 import { Modal } from './ui/Modal'
+import { fetchRanking } from './ui/RankedModal'
 import { useNow } from './useNow'
 
 export function QuizRoom({ quizId, initialName }: { quizId: string; initialName: string }) {
   const [name, setName] = useState(initialName)
+  // A shared link has no ?name=; a logged-in player skips the prompt.
+  useEffect(() => {
+    if (!initialName) {
+      const s = loadSession()
+      if (s) setName(s.user.name)
+    }
+  }, [initialName])
   // Bumping the key remounts the room with a fresh socket (used by "Play again").
   const [run, setRun] = useState(0)
   if (!name) return <NamePrompt quizId={quizId} onSubmit={setName} />
@@ -51,6 +61,19 @@ function Room({
   const now = useNow(200) + state.serverOffset
   const [rulesOpen, setRulesOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [overall, setOverall] = useState<RankedPlayer | null>(null)
+  useEffect(() => {
+    if (state.phase !== 'finished' || !loadSession()) return
+    // The server records results off the hot path right after `quiz_end`; give it a beat.
+    const t = setTimeout(
+      () =>
+        fetchRanking(1)
+          .then((r) => setOverall(r.me))
+          .catch(() => undefined),
+      600,
+    )
+    return () => clearTimeout(t)
+  }, [state.phase])
 
   const copyInvite = async () => {
     try {
@@ -212,11 +235,20 @@ function Room({
                   </>
                 )}
               </p>
+              {overall && (
+                <p className="mt-1.5 text-[12px] text-accent">
+                  Ranked #{overall.rank} overall · {overall.totalScore.toLocaleString()} pts ·{' '}
+                  {overall.wins} win{overall.wins === 1 ? '' : 's'}
+                </p>
+              )}
               <div className="mt-5 flex items-center gap-2">
                 <Button onClick={playAgain} disabled={restarting}>
                   {restarting ? 'Starting…' : 'Play again'}
                 </Button>
-                <Button variant="secondary" onClick={() => router.push('/')}>
+                <Button variant="secondary" onClick={copyInvite}>
+                  {copied ? 'Link copied' : 'Invite friends'}
+                </Button>
+                <Button variant="ghost" onClick={() => router.push('/')}>
                   Home
                 </Button>
               </div>

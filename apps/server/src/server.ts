@@ -3,12 +3,13 @@
  * handle that tests and the entrypoint both use, so integration tests run the real stack on
  * an ephemeral port.
  */
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { sql } from 'kysely'
 import { type QuizActor, SessionRegistry, type SessionResolver } from './actor/index.js'
+import { createAuth, MemoryUserStore } from './auth.js'
 import { ClusterRegistry, RedisBus } from './cluster/index.js'
 import type { Config } from './config.js'
 import {
@@ -16,12 +17,17 @@ import {
   type Db,
   migrateToLatest,
   PostgresQuizStore,
+  PostgresRanking,
   PostgresSessionArchive,
+  PostgresUserStore,
+  type RankingStore,
   type SessionArchive,
+  type UserStore,
 } from './db/index.js'
 import { DEFAULT_RULES, type QuizDefinition } from './domain/index.js'
 import { createLogger, type Logger } from './observability/logger.js'
 import { createMetrics, type Metrics } from './observability/metrics.js'
+import { MemoryRanking } from './ranking.js'
 import { createHttpApp } from './transport/http.js'
 import { registerWebSocket } from './transport/ws.js'
 
@@ -61,6 +67,9 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
   // ---- persistence (optional) ------------------------------------------------------------
   let db: Db | null = null
   let archive: SessionArchive | null = null
+  let users: UserStore = new MemoryUserStore()
+  const memoryRanking = new MemoryRanking()
+  let ranking: RankingStore = memoryRanking
   let definitions = opts.definitions
   if (config.DATABASE_URL) {
     db = createDb(config.DATABASE_URL)
@@ -79,11 +88,18 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     }
     if (fromDb.length > 0) definitions = fromDb
     archive = new PostgresSessionArchive(db)
+    users = new PostgresUserStore(db)
+    ranking = new PostgresRanking(db)
     logger.info(
       { url: config.DATABASE_URL.replace(/\/\/.*@/, '//***@'), quizzes: definitions.length },
       'database connected',
     )
   }
+
+  // ---- accounts (optional) ----------------------------------------------------------------
+  if (!config.AUTH_SECRET && (config.REDIS_URL || config.NODE_ENV === 'production'))
+    logger.warn('AUTH_SECRET is not set: login tokens will not survive a restart or work across instances')
+  const auth = createAuth({ users, secret: config.AUTH_SECRET ?? randomBytes(32).toString('hex'), clock })
 
   // Archive writes never block gameplay: fire-and-forget with logging.
   const persist = (what: string, p: Promise<unknown>) => {
@@ -126,6 +142,7 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     onDisposed: (actor) => void cluster?.onLocalDisposed(actor),
     onQuizFinished: (state, standings) => {
       if (archive) persist('session_finished', archive.sessionFinished(state, standings))
+      else memoryRanking.record(standings)
     },
   })
 
@@ -168,6 +185,8 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     metrics,
     instanceId,
     archive,
+    auth,
+    ranking,
     readiness: async () => {
       try {
         if (bus && (await bus.client.ping()) !== 'PONG') return false
@@ -185,6 +204,7 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
     metrics,
     clock,
     newUserId: () => randomUUID(),
+    verifyToken: auth.verifyToken,
     options: {
       backpressureBytes: config.WS_BACKPRESSURE_BYTES,
       heartbeatMs: config.WS_HEARTBEAT_MS,

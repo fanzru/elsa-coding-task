@@ -285,3 +285,96 @@ describe('auto-create mode', () => {
     c.close()
   })
 })
+
+describe('auth (optional accounts)', () => {
+  const post = (path: string, body: unknown) =>
+    api(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  type Session = { token: string; user: { id: string; name: string } }
+
+  it('registers, refuses duplicates and bad input, logs in, identifies the bearer', async () => {
+    const reg = await post('/api/auth/register', { username: 'Ana_1', password: 'correct horse' })
+    expect(reg.status).toBe(201)
+    const { token, user } = (await reg.json()) as Session
+    expect(user.name).toBe('Ana_1')
+    expect(user.id).toMatch(/^u_/)
+    // usernames are unique case-insensitively
+    expect(
+      (await post('/api/auth/register', { username: 'ana_1', password: 'correct horse' })).status,
+    ).toBe(409)
+    expect((await post('/api/auth/register', { username: 'x', password: 'short' })).status).toBe(
+      400,
+    )
+    // unknown user and wrong password are indistinguishable
+    expect((await post('/api/auth/login', { username: 'Ana_1', password: 'wrong pass' })).status).toBe(401)
+    expect((await post('/api/auth/login', { username: 'nobody', password: 'wrong pass' })).status).toBe(401)
+    const login = await post('/api/auth/login', { username: 'ana_1', password: 'correct horse' })
+    expect(login.status).toBe(200)
+    expect(((await login.json()) as Session).user.id).toBe(user.id)
+    const me = await api('/api/auth/me', { headers: { authorization: `Bearer ${token}` } })
+    expect(((await me.json()) as Session).user.id).toBe(user.id)
+    expect((await api('/api/auth/me', { headers: { authorization: 'Bearer no.pe' } })).status).toBe(401)
+  })
+
+  it('a token fixes the identity on join; a bare account id or a bad token is refused', async () => {
+    const reg = await post('/api/auth/register', { username: 'Bob', password: 'correct horse' })
+    const { token, user } = (await reg.json()) as Session
+    const { quizId } = await createSession()
+
+    const c = await connect(server.wsUrl)
+    c.send({ type: 'join', quizId, name: 'Impostor', userId: 'ignored', token })
+    expect((await c.next('welcome')).you).toEqual({ userId: user.id, name: 'Bob' })
+    c.close()
+
+    const d = await connect(server.wsUrl)
+    d.send({ type: 'join', quizId, name: 'Impostor', userId: user.id })
+    expect((await d.next('error')).code).toBe('unauthorized')
+    d.close()
+
+    const e = await connect(server.wsUrl)
+    e.send({ type: 'join', quizId, name: 'Impostor', token: `${token}x` })
+    expect((await e.next('error')).code).toBe('unauthorized')
+    e.close()
+  })
+
+  it('ranked: finished sessions add up per account; anonymous players are not ranked', async () => {
+    type Board = { players: Array<Record<string, unknown>>; me: Record<string, unknown> | null }
+    const register = async (username: string) =>
+      (await (await post('/api/auth/register', { username, password: 'correct horse' })).json()) as Session
+    const cara = await register('Cara')
+    const dave = await register('Dave')
+    const { quizId } = await createSession({
+      overrides: { lobbyMs: 100, questionTimeLimitMs: 1_000, revealMs: 50, endEarlyWhenAllAnswered: false },
+    })
+    const joinAs = async (token: string) => {
+      const c = await connect(server.wsUrl)
+      c.send({ type: 'join', quizId, name: 'x', token })
+      await c.next('welcome')
+      return c
+    }
+    const c = await joinAs(cara.token)
+    const d = await joinAs(dave.token)
+    const anon = await join(quizId, 'Anon')
+    const q = await c.next('question')
+    c.send({ type: 'answer', questionId: q.question.id, choice: 1 }) // only Cara scores
+    await c.next('quiz_end', () => true, 15_000)
+
+    const board = async (path: string, token: string) =>
+      (await (await api(path, { headers: { authorization: `Bearer ${token}` } })).json()) as Board
+    const full = await board('/api/ranking', dave.token)
+    expect(full.players.map((p) => p.name)).toEqual(['Cara', 'Dave'])
+    expect(full.players[0]).toMatchObject({ rank: 1, userId: cara.user.id, games: 1, wins: 1 })
+    expect(full.players[0]?.totalScore).toBeGreaterThan(0)
+    expect(full.me).toMatchObject({ rank: 2, name: 'Dave', totalScore: 0, games: 1, wins: 0 })
+    // `me` comes back even when outside the requested top
+    const top1 = await board('/api/ranking?limit=1', dave.token)
+    expect(top1.players).toHaveLength(1)
+    expect(top1.me?.rank).toBe(2)
+    // no token → no `me`
+    expect(((await (await api('/api/ranking')).json()) as Board).me).toBeNull()
+    for (const s of [c, d, anon.client]) s.close()
+  }, 20_000)
+})

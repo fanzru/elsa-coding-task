@@ -2,7 +2,7 @@
  * Everything the rest of the server needs from Postgres, behind two small interfaces so the
  * actor/transport layers never see SQL and can run without a database at all.
  */
-import type { LeaderboardEntry } from '@quiz/protocol'
+import type { LeaderboardEntry, RankedPlayer, RankingResponse } from '@quiz/protocol'
 import { sql } from 'kysely'
 import type { QuizDefinition, SessionRules, SessionState } from '../domain/types.js'
 import type { Db } from './client.js'
@@ -233,5 +233,100 @@ export class PostgresSessionArchive implements SessionArchive {
       finishedAt: r.finished_at,
       participants: Number(r.participants),
     }))
+  }
+}
+
+// ---- accounts -----------------------------------------------------------------------------
+
+export interface UserRecord {
+  id: string
+  username: string
+  passwordHash: string
+}
+
+export interface UserStore {
+  /** Case-insensitive lookup. */
+  findByUsername(username: string): Promise<UserRecord | null>
+  /** False when the username is already taken (case-insensitively). */
+  create(user: UserRecord): Promise<boolean>
+}
+
+export class PostgresUserStore implements UserStore {
+  constructor(private readonly db: Db) {}
+
+  async findByUsername(username: string): Promise<UserRecord | null> {
+    const row = await this.db
+      .selectFrom('users')
+      .select(['id', 'username', 'password_hash'])
+      .where(sql`lower(username)`, '=', username.toLowerCase())
+      .executeTakeFirst()
+    return row ? { id: row.id, username: row.username, passwordHash: row.password_hash } : null
+  }
+
+  async create(user: UserRecord): Promise<boolean> {
+    try {
+      await this.db
+        .insertInto('users')
+        .values({ id: user.id, username: user.username, password_hash: user.passwordHash })
+        .execute()
+      return true
+    } catch (err) {
+      // 23505 = unique_violation on users_username_lower_uq; anything else is a real failure.
+      if ((err as { code?: string }).code === '23505') return false
+      throw err
+    }
+  }
+}
+
+// ---- ranked (accounts only) ---------------------------------------------------------------
+
+export interface RankingStore {
+  /** Top `limit` accounts by total score over finished sessions, plus `me` even when outside the top. */
+  ranking(limit: number, userId?: string): Promise<RankingResponse>
+}
+
+interface RankedRow {
+  user_id: string
+  name: string
+  total_score: number
+  games: number
+  wins: number
+  best_score: number
+  rank: number
+}
+
+/** Derived from `session_results`, which the archive already writes — no second source of truth. */
+export class PostgresRanking implements RankingStore {
+  constructor(private readonly db: Db) {}
+
+  // ponytail: aggregates session_results on every call; add a player_stats rollup when it passes ~1M rows.
+  async ranking(limit: number, userId?: string): Promise<RankingResponse> {
+    // Order must match MemoryRanking: total score, then wins, then user id — never a tie.
+    const { rows } = await sql<RankedRow>`
+      with agg as (
+        select user_id, max(name) as name, sum(score)::int as total_score, count(*)::int as games,
+               (count(*) filter (where rank = 1))::int as wins, max(score)::int as best_score
+        from session_results
+        where starts_with(user_id, 'u_')
+        group by user_id
+      ), ranked as (
+        select agg.*, (row_number() over (order by total_score desc, wins desc, user_id))::int as rank
+        from agg
+      )
+      select * from ranked where rank <= ${limit} or user_id = ${userId ?? ''} order by rank
+    `.execute(this.db)
+    const players: RankedPlayer[] = rows.map((r) => ({
+      rank: r.rank,
+      userId: r.user_id,
+      name: r.name,
+      totalScore: r.total_score,
+      games: r.games,
+      wins: r.wins,
+      bestScore: r.best_score,
+    }))
+    return {
+      players: players.filter((p) => p.rank <= limit),
+      me: players.find((p) => p.userId === userId) ?? null,
+    }
   }
 }

@@ -33,6 +33,7 @@ services:
     build: { context: ., dockerfile: apps/server/Dockerfile }
     environment:
       INSTANCE_ID: A
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-secret-change-me}
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://quiz:quiz@postgres:5432/quiz
       LOG_LEVEL: info
@@ -45,6 +46,7 @@ services:
     build: { context: ., dockerfile: apps/server/Dockerfile }
     environment:
       INSTANCE_ID: B
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-secret-change-me}
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://quiz:quiz@postgres:5432/quiz
       DB_AUTO_MIGRATE: 'false' # A migrates; B only reads

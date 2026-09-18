@@ -10,6 +10,7 @@ protocol. Auth and analytics are mocked.
 
 | | |
 |---|---|
+| 📋 The brief | [`docs/elsa_task.md`](docs/elsa_task.md) — the challenge text, with a map from each requirement to where it is answered |
 | 📐 System design | [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, data flow, technology choices, scalability/performance/reliability/maintainability/observability, trade-offs |
 | 🤖 AI collaboration | [`docs/AI_COLLABORATION.md`](docs/AI_COLLABORATION.md) — what the AI did, what it got wrong, how each piece was verified |
 | 📈 Load-test results | [`docs/loadtest/`](docs/loadtest/) — raw JSON from 500 / 2 000 / 5 000-player runs |
@@ -51,9 +52,29 @@ GET  /api/sessions/:id                  phase, participants
 GET  /api/sessions/:id/leaderboard      polling fallback
 POST /api/sessions/:id/start            skip the lobby countdown
 POST /api/sessions/:id/restart          fresh run under the same code
+POST /api/auth/register {username, password}   create an account → {token, user} (201)
+POST /api/auth/login    {username, password}   → {token, user}
+GET  /api/auth/me                       who a `Authorization: Bearer` token belongs to
+GET  /api/ranking?limit=50              ranked board: accounts' totals over finished sessions (+ `me` with a bearer)
 GET  /healthz  /readyz  /metrics        ops
 WS   /ws                                the real-time protocol (docs/DESIGN.md §5)
 ```
+
+## Accounts and ranked play (optional)
+
+A display name is all it takes to play. **Log in** in the sidebar creates an account instead:
+the username becomes the player name, and the socket sends the bearer token on `join`, so the
+server pins the identity from the token (a bare account id without a token is refused).
+
+Logged-in players are **ranked**: every finished session adds to their total (points, games,
+wins), **Ranked** in the sidebar shows the board and your position, and the results screen
+shows your overall rank. Anonymous players get a fresh id per session, so they are never
+ranked. Invite friends with **Copy invite link** in a room or **Invite friends** on the results
+screen — the link lands them straight in the session.
+
+Users and the ranked board live in Postgres when `DATABASE_URL` is set (the board is derived
+from `session_results`, no extra table), otherwise in memory. Set `AUTH_SECRET` so tokens
+survive a restart and are valid on every instance of a cluster.
 
 ## Tests
 

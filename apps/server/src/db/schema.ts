@@ -51,7 +51,16 @@ export interface SessionResultsTable {
   answers: JSONColumnType<Record<string, AnswerRecord>>
 }
 
+export interface UsersTable {
+  id: string
+  /** Case preserved for display; unique case-insensitively (index on lower(username)). */
+  username: string
+  password_hash: string
+  created_at: Generated<Date>
+}
+
 export interface Database {
+  users: UsersTable
   quizzes: QuizzesTable
   questions: QuestionsTable
   sessions: SessionsTable

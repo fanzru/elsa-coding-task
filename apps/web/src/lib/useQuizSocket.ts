@@ -21,6 +21,7 @@ import {
   type ServerMessage,
 } from '@quiz/protocol'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { loadSession } from './auth'
 import { WS_URL } from './config'
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'closed'
@@ -187,12 +188,15 @@ export function useQuizSocket(quizId: string, name: string) {
         } catch {
           /* private mode */
         }
+        // Logged in: the token decides who we are; the server ignores name/userId then.
+        const token = loadSession()?.token
         socket.send(
           JSON.stringify({
             type: 'join',
             quizId,
             name,
             ...(userId ? { userId, lastSeq: seqRef.current } : {}),
+            ...(token ? { token } : {}),
           }),
         )
       }

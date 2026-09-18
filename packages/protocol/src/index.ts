@@ -76,6 +76,11 @@ export const JoinMessage = z.object({
   /** Returning user (reconnect / refresh). Server-issued; opaque to the client. */
   userId: z.string().min(1).max(64).optional(),
   /**
+   * Bearer token from `POST /api/auth/login|register`. When present the server takes the
+   * player's id and name from it and ignores `name` / `userId`.
+   */
+  token: z.string().min(1).max(2048).optional(),
+  /**
    * Last `seq` the client processed before reconnecting. The server always replies with a full
    * snapshot (`welcome`), so this is not needed for correctness — it lets the server log and
    * measure how far behind reconnecting clients were.
@@ -180,7 +185,14 @@ export const LobbyMessage = z.object({
 
 export const ErrorMessage = z.object({
   type: z.literal('error'),
-  code: z.enum(['bad_message', 'not_joined', 'quiz_not_found', 'rate_limited', 'internal']),
+  code: z.enum([
+    'bad_message',
+    'not_joined',
+    'quiz_not_found',
+    'rate_limited',
+    'unauthorized',
+    'internal',
+  ]),
   message: z.string(),
 })
 
@@ -251,6 +263,46 @@ export const SessionInfo = z.object({
   participants: z.number().int(),
 })
 export type SessionInfo = z.infer<typeof SessionInfo>
+
+// ---------------------------------------------------------------------------
+// Accounts (optional — a display name is enough to play)
+// ---------------------------------------------------------------------------
+
+/** Doubles as the player's display name, hence the same 24-char ceiling as `DisplayName`. */
+export const Username = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_]{3,24}$/, 'username: 3–24 letters, digits or _')
+export const AuthRequest = z.object({
+  username: Username,
+  password: z.string().min(8, 'password: at least 8 characters').max(128),
+})
+export type AuthRequest = z.infer<typeof AuthRequest>
+
+export const AuthUser = z.object({ id: z.string(), name: z.string() })
+export type AuthUser = z.infer<typeof AuthUser>
+export const AuthResponse = z.object({ token: z.string(), user: AuthUser })
+export type AuthResponse = z.infer<typeof AuthResponse>
+
+/** One row of the ranked board: an account's totals across every finished session. */
+export const RankedPlayer = z.object({
+  rank: z.number().int().positive(),
+  userId: z.string(),
+  name: z.string(),
+  totalScore: z.number().int().nonnegative(),
+  games: z.number().int().nonnegative(),
+  wins: z.number().int().nonnegative(),
+  bestScore: z.number().int().nonnegative(),
+})
+export type RankedPlayer = z.infer<typeof RankedPlayer>
+
+/** GET /api/ranking — accounts only (anonymous players get a fresh id per session). */
+export const RankingResponse = z.object({
+  players: z.array(RankedPlayer),
+  /** The caller, when a bearer token was sent and the account has finished a session. */
+  me: RankedPlayer.nullable(),
+})
+export type RankingResponse = z.infer<typeof RankingResponse>
 
 // ---------------------------------------------------------------------------
 // Helpers
