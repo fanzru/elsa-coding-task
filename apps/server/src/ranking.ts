@@ -4,6 +4,7 @@
  */
 import type { LeaderboardEntry, RankedPlayer, RankingResponse } from '@quiz/protocol'
 import type { RankingStore } from './db/repository.js'
+import { JsonFile } from './store/json-file.js'
 
 type Stats = Omit<RankedPlayer, 'rank'>
 
@@ -12,8 +13,14 @@ const byRank = (a: Stats, b: Stats) =>
   b.totalScore - a.totalScore || b.wins - a.wins || (a.userId < b.userId ? -1 : 1)
 
 export class MemoryRanking implements RankingStore {
-  // ponytail: in-process totals, lost on restart and per instance; set DATABASE_URL to keep them.
+  // ponytail: single-instance totals, mirrored to a JSON file when given; DATABASE_URL for a cluster.
   private readonly stats = new Map<string, Stats>()
+  private readonly file: JsonFile<Stats[]> | null
+
+  constructor(file?: string) {
+    this.file = file ? new JsonFile(file) : null
+    for (const s of this.file?.load([]) ?? []) this.stats.set(s.userId, s)
+  }
 
   record(standings: LeaderboardEntry[]): void {
     for (const e of standings) {
@@ -32,6 +39,7 @@ export class MemoryRanking implements RankingStore {
       s.bestScore = Math.max(s.bestScore, e.score)
       this.stats.set(e.userId, s)
     }
+    this.file?.save([...this.stats.values()])
   }
 
   async ranking(limit: number, userId?: string): Promise<RankingResponse> {

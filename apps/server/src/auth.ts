@@ -19,6 +19,7 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { AuthRequest, type AuthResponse, type MeResponse } from '@quiz/protocol'
 import { type Context, Hono } from 'hono'
 import type { UserRecord, UserStore } from './db/repository.js'
+import { JsonFile } from './store/json-file.js'
 import { TokenBucket } from './transport/rate-limit.js'
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>
@@ -31,9 +32,17 @@ export interface AuthClaims {
   exp: number
 }
 
+/** Accounts without a database: a Map, mirrored to a JSON file when one is given so restarts keep them. */
 export class MemoryUserStore implements UserStore {
-  // ponytail: process-local Map, users vanish on restart; set DATABASE_URL for persistence.
+  // ponytail: single-instance only; set DATABASE_URL to share accounts across instances.
   private readonly byName = new Map<string, UserRecord>()
+  private readonly file: JsonFile<UserRecord[]> | null
+
+  constructor(file?: string) {
+    this.file = file ? new JsonFile(file) : null
+    for (const u of this.file?.load([]) ?? [])
+      this.byName.set(u.username.toLowerCase(), { ...u, createdAt: new Date(u.createdAt) })
+  }
 
   async findByUsername(username: string): Promise<UserRecord | null> {
     return this.byName.get(username.toLowerCase()) ?? null
@@ -43,6 +52,7 @@ export class MemoryUserStore implements UserStore {
     const key = user.username.toLowerCase()
     if (this.byName.has(key)) return false
     this.byName.set(key, user)
+    this.file?.save([...this.byName.values()])
     return true
   }
 }

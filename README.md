@@ -76,8 +76,10 @@ ranked. Invite friends with **Copy invite link** in a room or **Invite friends**
 screen — the link lands them straight in the session.
 
 Users and the ranked board live in Postgres when `DATABASE_URL` is set (the board is derived
-from `session_results`, no extra table), otherwise in memory. Set `AUTH_SECRET` so tokens
-survive a restart and are valid on every instance of a cluster.
+from `session_results`, no extra table); without a database they are kept in JSON files under
+`apps/server/.data/` (gitignored), so a restart keeps them — single instance only. Set
+`AUTH_SECRET` so tokens survive a restart in production and are valid on every instance of a
+cluster (development uses a fixed dev secret).
 
 ## Tests
 

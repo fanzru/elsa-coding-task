@@ -5,6 +5,7 @@
  */
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
+import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { sql } from 'kysely'
@@ -51,6 +52,8 @@ export interface CreateServerOptions {
   definitions: QuizDefinition[]
   logger?: Logger
   clock?: () => number
+  /** Without a database: keep accounts and ranked totals in JSON files here (unset = memory only). */
+  dataDir?: string
 }
 
 export async function createServer(opts: CreateServerOptions): Promise<QuizServer> {
@@ -67,9 +70,12 @@ export async function createServer(opts: CreateServerOptions): Promise<QuizServe
   // ---- persistence (optional) ------------------------------------------------------------
   let db: Db | null = null
   let archive: SessionArchive | null = null
-  let users: UserStore = new MemoryUserStore()
-  const memoryRanking = new MemoryRanking()
+  const fileFor = (name: string) =>
+    !config.DATABASE_URL && opts.dataDir ? join(opts.dataDir, name) : undefined
+  let users: UserStore = new MemoryUserStore(fileFor('users.json'))
+  const memoryRanking = new MemoryRanking(fileFor('ranking.json'))
   let ranking: RankingStore = memoryRanking
+  if (fileFor('users.json')) logger.info({ dir: opts.dataDir }, 'accounts and ranked totals kept in JSON files')
   let definitions = opts.definitions
   if (config.DATABASE_URL) {
     db = createDb(config.DATABASE_URL)
