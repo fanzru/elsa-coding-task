@@ -16,7 +16,7 @@ import {
 } from 'node:crypto'
 import { promisify } from 'node:util'
 import { getConnInfo } from '@hono/node-server/conninfo'
-import { AuthRequest, type AuthResponse } from '@quiz/protocol'
+import { AuthRequest, type AuthResponse, type MeResponse } from '@quiz/protocol'
 import { type Context, Hono } from 'hono'
 import type { UserRecord, UserStore } from './db/repository.js'
 import { TokenBucket } from './transport/rate-limit.js'
@@ -131,6 +131,7 @@ export function createAuth(deps: AuthDeps): Auth {
       id: `u_${randomUUID()}`,
       username: parsed.data.username,
       passwordHash: await hashPassword(parsed.data.password),
+      createdAt: new Date(deps.clock()),
     }
     if (!(await deps.users.create(user))) return c.json({ error: 'that username is taken' }, 409)
     return respond(c, user, 201)
@@ -146,12 +147,16 @@ export function createAuth(deps: AuthDeps): Auth {
     return respond(c, user, 200)
   })
 
-  app.get('/me', (c) => {
+  app.get('/me', async (c) => {
     const header = c.req.header('authorization') ?? ''
     const claims = tokens.verify(header.replace(/^Bearer\s+/i, ''))
-    return claims
-      ? c.json({ user: { id: claims.sub, name: claims.name } })
-      : c.json({ error: 'unauthorized' }, 401)
+    // A valid token whose account is gone (in-memory store after a restart) is also a 401,
+    // so the client drops the stale session instead of showing a ghost profile.
+    const user = claims && (await deps.users.findByUsername(claims.name))
+    if (!user || user.id !== claims?.sub) return c.json({ error: 'unauthorized' }, 401)
+    return c.json({
+      user: { id: user.id, name: user.username, createdAt: user.createdAt.toISOString() },
+    } satisfies MeResponse)
   })
 
   return { routes: app, verifyToken: tokens.verify }

@@ -67,8 +67,8 @@ the username becomes the player name, and the socket sends the bearer token on `
 server pins the identity from the token (a bare account id without a token is refused).
 
 Logged-in players are **ranked**: every finished session adds to their total (points, games,
-wins), **Ranked** in the sidebar shows the board and your position, and the results screen
-shows your overall rank. Anonymous players get a fresh id per session, so they are never
+wins), **Ranked** in the sidebar shows the board and your position, the results screen shows
+your overall rank, and **Profile** (`/profile`) shows the account and its "My rank" stats. Anonymous players get a fresh id per session, so they are never
 ranked. Invite friends with **Copy invite link** in a room or **Invite friends** on the results
 screen — the link lands them straight in the session.
 

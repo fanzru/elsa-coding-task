@@ -2,6 +2,7 @@
  * Optional account: the bearer token and user from POST /api/auth/{login,register}, kept in
  * localStorage. The socket sends the token on `join`; the server pins the identity from it.
  */
+import type { MeResponse } from '@quiz/protocol'
 import { HTTP_URL } from './config'
 
 export interface AuthSession {
@@ -45,4 +46,17 @@ export async function authenticate(
   const session = { token: body.token, user: body.user }
   saveSession(session)
   return session
+}
+
+/** The account behind the stored token. A 401 means the token is stale: the session is dropped. */
+export async function fetchMe(): Promise<MeResponse['user'] | null> {
+  const token = loadSession()?.token
+  if (!token) return null
+  const res = await fetch(`${HTTP_URL}/api/auth/me`, { headers: { authorization: `Bearer ${token}` } })
+  if (res.status === 401) {
+    saveSession(null)
+    return null
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return ((await res.json()) as MeResponse).user
 }

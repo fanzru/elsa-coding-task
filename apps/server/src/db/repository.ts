@@ -242,6 +242,7 @@ export interface UserRecord {
   id: string
   username: string
   passwordHash: string
+  createdAt: Date
 }
 
 export interface UserStore {
@@ -257,17 +258,29 @@ export class PostgresUserStore implements UserStore {
   async findByUsername(username: string): Promise<UserRecord | null> {
     const row = await this.db
       .selectFrom('users')
-      .select(['id', 'username', 'password_hash'])
+      .select(['id', 'username', 'password_hash', 'created_at'])
       .where(sql`lower(username)`, '=', username.toLowerCase())
       .executeTakeFirst()
-    return row ? { id: row.id, username: row.username, passwordHash: row.password_hash } : null
+    return row
+      ? {
+          id: row.id,
+          username: row.username,
+          passwordHash: row.password_hash,
+          createdAt: row.created_at,
+        }
+      : null
   }
 
   async create(user: UserRecord): Promise<boolean> {
     try {
       await this.db
         .insertInto('users')
-        .values({ id: user.id, username: user.username, password_hash: user.passwordHash })
+        .values({
+          id: user.id,
+          username: user.username,
+          password_hash: user.passwordHash,
+          created_at: user.createdAt,
+        })
         .execute()
       return true
     } catch (err) {

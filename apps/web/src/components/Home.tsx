@@ -6,7 +6,6 @@ import {
   BarChartIcon,
   ChevronRightIcon,
   EnterIcon,
-  ExitIcon,
   InfoCircledIcon,
   PersonIcon,
   PlusCircledIcon,
@@ -14,7 +13,7 @@ import {
 } from '@radix-ui/react-icons'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { type AuthSession, loadSession, saveSession } from '@/lib/auth'
+import { type AuthSession, loadSession } from '@/lib/auth'
 import { HTTP_URL } from '@/lib/config'
 import { AppShell } from './ui/AppShell'
 import { AuthModal } from './ui/AuthModal'
@@ -99,11 +98,6 @@ export function Home() {
     setSession(s)
     setName(s.user.name)
   }
-  const signOut = () => {
-    saveSession(null)
-    setSession(null)
-  }
-
   const remember = () => {
     try {
       localStorage.setItem('quiz:name', name.trim())
@@ -162,7 +156,7 @@ export function Home() {
         ],
         secondary: [
           session
-            ? { icon: <ExitIcon />, label: `Log out (${session.user.name})`, onSelect: signOut }
+            ? { icon: <PersonIcon />, label: 'Profile', href: '/profile' }
             : { icon: <PersonIcon />, label: 'Log in', onSelect: () => setAuthOpen(true) },
           {
             icon: <InfoCircledIcon />,

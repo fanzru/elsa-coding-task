@@ -315,7 +315,9 @@ describe('auth (optional accounts)', () => {
     expect(login.status).toBe(200)
     expect(((await login.json()) as Session).user.id).toBe(user.id)
     const me = await api('/api/auth/me', { headers: { authorization: `Bearer ${token}` } })
-    expect(((await me.json()) as Session).user.id).toBe(user.id)
+    const profile = ((await me.json()) as { user: { id: string; createdAt: string } }).user
+    expect(profile.id).toBe(user.id)
+    expect(Date.parse(profile.createdAt)).not.toBeNaN()
     expect((await api('/api/auth/me', { headers: { authorization: 'Bearer no.pe' } })).status).toBe(401)
   })
 

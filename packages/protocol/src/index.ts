@@ -283,6 +283,9 @@ export const AuthUser = z.object({ id: z.string(), name: z.string() })
 export type AuthUser = z.infer<typeof AuthUser>
 export const AuthResponse = z.object({ token: z.string(), user: AuthUser })
 export type AuthResponse = z.infer<typeof AuthResponse>
+/** GET /api/auth/me */
+export const MeResponse = z.object({ user: AuthUser.extend({ createdAt: z.string() }) })
+export type MeResponse = z.infer<typeof MeResponse>
 
 /** One row of the ranked board: an account's totals across every finished session. */
 export const RankedPlayer = z.object({
