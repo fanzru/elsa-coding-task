@@ -219,16 +219,24 @@ make tag VERSION=v0.1.0                 # annotated tag, pushed → workflow run
 # or: GitHub → Actions → Release → Run workflow → version v0.1.0 (creates the tag for you)
 ```
 
-Set repository variables `QUIZ_HTTP_URL` / `QUIZ_WS_URL` so the web image is built with your
-production server URLs. Then run the published images:
+Then run the published images with `compose.release.yaml` (Postgres + server + web):
 
 ```bash
-IMAGE_TAG=v0.1.0 docker compose -f compose.release.yaml up
+AUTH_SECRET=$(openssl rand -hex 24) IMAGE_TAG=v0.1.0 docker compose -f compose.release.yaml up
 ```
 
+**Portainer:** Stacks → Add stack → *Repository* → this repo, compose path
+`compose.release.yaml`. Environment variables: `AUTH_SECRET` (required, 16+ random chars),
+`POSTGRES_PASSWORD`, optionally `IMAGE_TAG` (default `latest`), `SERVER_PORT` (4000) and
+`WEB_PORT` (3000). Enable *GitOps updates* if you want the stack to follow new tags. The images
+are public on GHCR, so no registry credentials are needed. The browser reaches the server at
+`http://<host>:<SERVER_PORT>`; to put it behind a domain instead, set repository variables
+`QUIZ_HTTP_URL` / `QUIZ_WS_URL` before tagging so the web image is built with those URLs, and
+forward WebSocket `Upgrade` on the proxy.
+
 Server configuration is entirely environment variables (table above); it needs no volumes.
-Put a WebSocket-aware load balancer in front (any L4/L7 LB that forwards `Upgrade` works) and
-point every instance at the same `REDIS_URL` for multi-instance mode.
+For multi-instance mode, run several servers behind a WebSocket-aware load balancer and point
+every one at the same `REDIS_URL`.
 
 ## Production build
 

@@ -1,10 +1,13 @@
-# Run published images from GHCR (built by .github/workflows/release.yml on every tag):
-#   IMAGE_TAG=v0.1.0 docker compose -f compose.release.yaml up
-# Set GHCR_OWNER to the GitHub owner/repo the images were published under.
+# Runs the published GHCR images (built by .github/workflows/release.yml on every tag).
+#
+# Portainer: Stacks → Add stack → Repository, this file as the compose path, then set the
+# variables below under "Environment variables" (at least POSTGRES_PASSWORD and AUTH_SECRET).
+# Locally: IMAGE_TAG=v0.1.0 docker compose -f compose.release.yaml up
+#
+# The web image talks to the server from the browser at http://<this host>:${SERVER_PORT}
+# unless the image was built with NEXT_PUBLIC_QUIZ_HTTP_URL / _WS_URL (repository variables
+# QUIZ_HTTP_URL / QUIZ_WS_URL in GitHub), so keep the server port published.
 services:
-  redis:
-    image: redis:7-alpine
-
   postgres:
     image: postgres:17-alpine
     environment:
@@ -12,23 +15,31 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quiz}
       POSTGRES_DB: quiz
     volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U quiz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   server:
     image: ghcr.io/${GHCR_OWNER:-fanzru/elsa-coding-task}-server:${IMAGE_TAG:-latest}
     environment:
-      REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://quiz:${POSTGRES_PASSWORD:-quiz}@postgres:5432/quiz
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET (16+ random chars) so logins survive restarts}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       AUTO_CREATE_SESSIONS: 'false'
-      LOG_LEVEL: info
     ports: ['${SERVER_PORT:-4000}:4000']
-    depends_on: [redis, postgres]
-    deploy:
-      replicas: 2
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
 
   web:
     image: ghcr.io/${GHCR_OWNER:-fanzru/elsa-coding-task}-web:${IMAGE_TAG:-latest}
     ports: ['${WEB_PORT:-3000}:3000']
     depends_on: [server]
+    restart: unless-stopped
 
 volumes:
   pgdata:
